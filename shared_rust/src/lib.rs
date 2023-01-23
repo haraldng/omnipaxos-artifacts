@@ -1,6 +1,5 @@
 #![feature(array_map)]
 #![feature(unsized_locals)]
-#![feature(impl_trait_in_bindings)]
 pub mod benchmark;
 pub mod benchmark_client;
 pub mod benchmark_master;
