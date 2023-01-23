@@ -1,6 +1,7 @@
-Omni-Paxos Experiments
-===========================================
-# Experimental Setup/Requirements
+# Artifact Evaluation for Omni-Paxos [Eurosys'23]
+This repository contains instructions and scripts for reproducing the evaluation featured in our Eurosys'23 paper "Omni-Paxos: Breaking the Barriers of Partial Connectivity".
+
+
 - Ubuntu 18.04
 - Rust: rustc 1.53.0-nightly (42816d61e 2021-04-24)
 - JDK: openjdk 11.0.11 2021-04-20
