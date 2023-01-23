@@ -1,7 +1,11 @@
 # Artifact Evaluation for Omni-Paxos [Eurosys'23]
 This repository contains instructions and scripts for reproducing the evaluation featured in our Eurosys'23 paper "Omni-Paxos: Breaking the Barriers of Partial Connectivity".
 
+## Structure of Repository
+TODO
 
+## Environment
+Our evaluation was performed in the following environment TODO
 - Ubuntu 18.04
 - Rust: rustc 1.53.0-nightly (42816d61e 2021-04-24)
 - JDK: openjdk 11.0.11 2021-04-20
@@ -14,6 +18,18 @@ This repository contains instructions and scripts for reproducing the evaluation
  We used Google Cloud Compute `e2-standard-8` instances. We require one client instance and between 3-8 server instances. In Running we will provide the number of instances required per experiment.
 
  Installation Guide and Building must be performed on all VM instances. For convenience, it is recommended to do all steps for the client instancce first and then create a machine image from it that is used to deploy the server instances. Furthermore, we recommend using the internal IP addresses when needed in the following steps.
+
+## Configuration
+TODO
+
+## Running
+TODO also describe resources?
+
+## Minimal Example
+TODO describe fake remote?
+
+## Plotting
+
 
 # Installation Guide
 
