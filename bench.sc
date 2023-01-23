@@ -15,8 +15,6 @@ import $file.benchmarks, benchmarks._
 import $ivy.`com.decodified::scala-ssh:0.9.0`, com.decodified.scalassh.{SSH, HostConfigProvider, PublicKeyLogin}
 //import $ivy.`ch.qos.logback:logback-classic:1.1.7`
 
-val runnerAddr = "10.128.0.4:45678";
-val masterAddr = "10.128.0.4:45679";
 val localRunnerAddr = "127.0.0.1:45678";
 val localMasterAddr = "127.0.0.1:45679";
 
@@ -48,6 +46,7 @@ def getExperimentRunner(prefix: String, results: Path, testing: Boolean, benchma
 val logs = pwd / 'logs;
 val results = pwd / 'results;
 val defaultNodesFile = pwd / "nodes.conf";
+val defaultMasterFile = pwd / "master.conf";
 
 @arg(doc ="Run a specific benchmark client.")
 @main
@@ -79,7 +78,10 @@ def client(name: String, master: AddressArg, runid: String, publicif: String, cl
 
 @arg(doc ="Run benchmarks using a cluster of nodes.")
 @main
-def remote(withNodes: Path = defaultNodesFile, testing: Boolean = false, impls: Seq[String] = Seq.empty, benchmarks: Seq[String] = Seq.empty, runName: String = ""): Unit = {
+def remote(masterConf: Path = defaultMasterFile, withNodes: Path = defaultNodesFile, testing: Boolean = false, impls: Seq[String] = Seq.empty, benchmarks: Seq[String] = Seq.empty, runName: String = ""): Unit = {
+	val (masterIp, login) = readMaster(masterConf)
+	val runnerAddr = s"$masterIp:45678"
+	val masterAddr = s"$masterIp:45679"
 	val nodes = readNodes(withNodes);
 	val masters = runnersForImpl(impls, _.remoteRunner(runnerAddr, masterAddr, nodes.size));
 	val totalStart = System.currentTimeMillis();
@@ -97,7 +99,7 @@ def remote(withNodes: Path = defaultNodesFile, testing: Boolean = false, impls: 
 		val experimentRunner = getExperimentRunner(master.symbol, resultsdir, testing, benchmarks, runnerAddr);
 		println(s"Starting run [${i+1}/$nRunners]: ${master.label}");
 		val start = System.currentTimeMillis();
-		val r = remoteExperiment(experimentRunner, master, runId, logdir, nodes);
+		val r = remoteExperiment(experimentRunner, master, runId, logdir, nodes, masterAddr, login);
 		val end = System.currentTimeMillis();
 		val time = FiniteDuration(end-start, MILLISECONDS);
 		r match {
@@ -260,11 +262,11 @@ private def endSeparator(label: String, log: File): Unit = {
 	}
 }
 
-private def remoteExperiment(experimentRunner: BenchmarkRunner, master: BenchmarkRunner, runId: String, logDir: Path, nodes: List[NodeEntry]): Try[Unit] = {
+private def remoteExperiment(experimentRunner: BenchmarkRunner, master: BenchmarkRunner, runId: String, logDir: Path, nodes: List[NodeEntry], masterAddr: String, login: HostConfigProvider): Try[Unit] = {
 	Try {
 		val runner = master.run(logDir);
 		val pids = nodes.map { node =>
-			val pid = startClient(node, master.symbol, runId, masterAddr);
+			val pid = startClient(node, master.symbol, runId, masterAddr, login);
 			(node -> pid)
 		};
 		println(s"Got pids: $pids");
@@ -273,7 +275,7 @@ private def remoteExperiment(experimentRunner: BenchmarkRunner, master: Benchmar
 		runner.destroy();
 		pids.foreach {
 			case (node, Success(pid)) => {
-				val r = stopClient(node, pid);
+				val r = stopClient(node, pid, login);
 				println(s"Tried to stop client $node: $r");
 			}
 			case(node, Failure(_)) => Console.err.println(s"Could not stop client $node due to missing pid")
@@ -324,9 +326,27 @@ private def readNodes(p: Path): List[NodeEntry] = {
 	}
 }
 
-val login = HostConfigProvider.fromLogin(PublicKeyLogin("user", "/home/user/.ssh/id_rsa"));
+private def readMaster(p: Path): (String, HostConfigProvider) = {
+	if (exists! p) {
+		println(s"Reading master config from '${p}'");
+		val nodesS = read! p;
+		val nodeLines = nodesS.split("\n").filterNot(_.contains("#")).toList;
+		val masterIp = nodeLines(0)
+		val sshS = nodeLines(1).split("""\s\|\s""");
+		assert(sshS.size == 2);
+		val user = sshS(0)
+		val key = sshS(1)
+		val login = HostConfigProvider.fromLogin(PublicKeyLogin(user, key));
+		(masterIp, login)
+	} else {
+		Console.err.println(s"Could not find master config file '${p}'");
+		System.exit(1);
+		???
+	}
+}
 
-private def startClient(node: NodeEntry, bench: String, runId: String, master: String): Try[Int] = {
+
+private def startClient(node: NodeEntry, bench: String, runId: String, master: String, login: HostConfigProvider): Try[Int] = {
 	println(s"Connecting to ${node}...");
 	val connRes = SSH(node.ip, login) { client =>
 		for {
@@ -338,7 +358,7 @@ private def startClient(node: NodeEntry, bench: String, runId: String, master: S
 	connRes
 }
 
-private def stopClient(node: NodeEntry, pid: Int): Try[Unit] = {
+private def stopClient(node: NodeEntry, pid: Int, login: HostConfigProvider): Try[Unit] = {
 	println(s"Connecting to ${node}...");
 	val connRes = SSH(node.ip, login) { client =>
 		for {
