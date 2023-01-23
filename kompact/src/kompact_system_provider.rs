@@ -9,6 +9,7 @@ static mut GLOBAL: KompactSystemProvider = KompactSystemProvider {
     public_if: IpAddr::V4(Ipv4Addr::LOCALHOST),
 };
 
+#[allow(dead_code)]
 pub(crate) fn set_global_public_if(addr: IpAddr) {
     unsafe {
         GLOBAL.set_public_if(addr);

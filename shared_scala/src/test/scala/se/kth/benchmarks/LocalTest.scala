@@ -33,35 +33,6 @@ class FailRunner(s: Stage) extends BenchmarkRunnerGrpc.BenchmarkRunner {
   override def shutdown(request: ShutdownRequest): Future[ShutdownAck] = {
     ???
   }
-
-  override def pingPong(request: PingPongRequest): Future[TestResult] = {
-    Future {
-      val res = BenchmarkRunner.run(new FailLocalBench(s))(); // fail the first one
-      val msg = BenchmarkRunner.resultToTestResult(res);
-      msg
-    }
-  }
-
-  override def netPingPong(request: PingPongRequest): Future[TestResult] = Future.successful(NotImplemented());
-
-  override def throughputPingPong(request: ThroughputPingPongRequest): Future[TestResult] = {
-    Future {
-      val res = BenchmarkRunner.run(TestLocalBench)(); // but run the second one to make sure we are in a consistent state
-      val msg = BenchmarkRunner.resultToTestResult(res);
-      msg
-    }
-  }
-
-  override def netThroughputPingPong(request: ThroughputPingPongRequest): Future[TestResult] =
-    Future.successful(NotImplemented());
-
-  override def atomicRegister(request: AtomicRegisterRequest): Future[TestResult] = Future.successful(NotImplemented());
-  override def streamingWindows(request: StreamingWindowsRequest): Future[TestResult] =
-    Future.successful(NotImplemented());
-
-  override def allPairsShortestPath(request: APSPRequest): Future[TestResult] = Future.successful(NotImplemented());
-  override def chameneos(request: ChameneosRequest): Future[TestResult] = Future.successful(NotImplemented());
-  override def fibonacci(request: FibonacciRequest): Future[TestResult] = Future.successful(NotImplemented());
 }
 
 object TestRunner extends BenchmarkRunnerGrpc.BenchmarkRunner {
@@ -72,53 +43,5 @@ object TestRunner extends BenchmarkRunnerGrpc.BenchmarkRunner {
   }
   override def shutdown(request: ShutdownRequest): Future[ShutdownAck] = {
     ???
-  }
-
-  override def pingPong(request: PingPongRequest): Future[TestResult] = {
-    Future {
-      val res = BenchmarkRunner.run(TestLocalBench)();
-      val msg = BenchmarkRunner.resultToTestResult(res);
-      msg
-    }
-  }
-
-  override def netPingPong(request: PingPongRequest): Future[TestResult] = Future.successful(NotImplemented());
-
-  override def throughputPingPong(request: ThroughputPingPongRequest): Future[TestResult] = {
-    Future {
-      val res = BenchmarkRunner.run(TestLocalBench)();
-      val msg = BenchmarkRunner.resultToTestResult(res);
-      msg
-    }
-  }
-
-  override def netThroughputPingPong(request: ThroughputPingPongRequest): Future[TestResult] =
-    Future.successful(NotImplemented());
-
-  override def atomicRegister(request: AtomicRegisterRequest): Future[TestResult] = Future.successful(NotImplemented());
-
-  override def streamingWindows(request: StreamingWindowsRequest): Future[TestResult] =
-    Future.successful(NotImplemented());
-
-  override def allPairsShortestPath(request: APSPRequest): Future[TestResult] = {
-    Future {
-      val res = BenchmarkRunner.run(TestLocalBench)();
-      val msg = BenchmarkRunner.resultToTestResult(res);
-      msg
-    }
-  }
-  override def chameneos(request: ChameneosRequest): Future[TestResult] = {
-    Future {
-      val res = BenchmarkRunner.run(TestLocalBench)();
-      val msg = BenchmarkRunner.resultToTestResult(res);
-      msg
-    }
-  }
-  override def fibonacci(request: FibonacciRequest): Future[TestResult] = {
-    Future {
-      val res = BenchmarkRunner.run(TestLocalBench)();
-      val msg = BenchmarkRunner.resultToTestResult(res);
-      msg
-    }
   }
 }

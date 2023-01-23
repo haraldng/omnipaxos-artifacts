@@ -78,66 +78,6 @@ class LocalTest(val runnerImpl: BenchmarkRunnerGrpc.BenchmarkRunner) extends Mat
       ready should be(true);
 
       /*
-       * Ping Pong
-       */
-      logger.info("Starting test PingPong");
-      val ppr = PingPongRequest().withNumberOfMessages(100);
-      val pprResF = benchStub.pingPong(ppr);
-      checkResult("PingPong", pprResF);
-      logger.info("Finished test PingPong");
-
-      /*
-       * Throughput Ping Pong
-       */
-      logger.info("Starting test ThroughputPingPong (static)");
-      val tppr =
-        ThroughputPingPongRequest()
-          .withMessagesPerPair(100)
-          .withParallelism(2)
-          .withPipelineSize(20)
-          .withStaticOnly(true);
-      val tpprResF = benchStub.throughputPingPong(tppr);
-      checkResult("ThroughputPingPong (static)", tpprResF);
-      logger.info("Finished Starting test ThroughputPingPong (static)");
-
-      logger.info("Starting test ThroughputPingPong (gc)");
-      val tppr2 = ThroughputPingPongRequest()
-        .withMessagesPerPair(100)
-        .withParallelism(2)
-        .withPipelineSize(20)
-        .withStaticOnly(false);
-      val tpprResF2 = benchStub.throughputPingPong(tppr2);
-      checkResult("ThroughputPingPong (gc)", tpprResF2);
-      logger.info("Finished test ThroughputPingPong (gc)");
-
-      /*
-       * Fibonacci
-       */
-      logger.info("Starting test Fibonacci");
-      val fibr = FibonacciRequest().withFibNumber(15);
-      val fibResF = benchStub.fibonacci(fibr);
-      checkResult("Fibonacci", fibResF);
-      logger.info("Finished test Fibonacci");
-
-      /*
-       * Chameneos
-       */
-      logger.info("Starting test Chameneos");
-      val chamr = ChameneosRequest().withNumberOfChameneos(10).withNumberOfMeetings(100);
-      val chamResF = benchStub.chameneos(chamr);
-      checkResult("Chameneos", chamResF);
-      logger.info("Finished test Chameneos");
-
-      /*
-       * All-Pairs Shortest Path
-       */
-      logger.info("Starting test AllPairsShortestPath");
-      val apspr = APSPRequest().withNumberOfNodes(12).withBlockSize(4);
-      val apspResF = benchStub.allPairsShortestPath(apspr);
-      checkResult("AllPairsShortestPath", apspResF);
-      logger.info("Finished test AllPairsShortestPath");
-
-      /*
        * Clean Up
        */
       logger.debug("Sending shutdown request to runner");

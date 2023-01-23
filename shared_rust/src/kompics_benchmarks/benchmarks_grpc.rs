@@ -26,24 +26,6 @@ pub trait BenchmarkRunner {
 
     fn shutdown(&self, o: ::grpc::RequestOptions, p: super::messages::ShutdownRequest) -> ::grpc::SingleResponse<super::messages::ShutdownAck>;
 
-    fn ping_pong(&self, o: ::grpc::RequestOptions, p: super::benchmarks::PingPongRequest) -> ::grpc::SingleResponse<super::messages::TestResult>;
-
-    fn net_ping_pong(&self, o: ::grpc::RequestOptions, p: super::benchmarks::PingPongRequest) -> ::grpc::SingleResponse<super::messages::TestResult>;
-
-    fn throughput_ping_pong(&self, o: ::grpc::RequestOptions, p: super::benchmarks::ThroughputPingPongRequest) -> ::grpc::SingleResponse<super::messages::TestResult>;
-
-    fn net_throughput_ping_pong(&self, o: ::grpc::RequestOptions, p: super::benchmarks::ThroughputPingPongRequest) -> ::grpc::SingleResponse<super::messages::TestResult>;
-
-    fn atomic_register(&self, o: ::grpc::RequestOptions, p: super::benchmarks::AtomicRegisterRequest) -> ::grpc::SingleResponse<super::messages::TestResult>;
-
-    fn streaming_windows(&self, o: ::grpc::RequestOptions, p: super::benchmarks::StreamingWindowsRequest) -> ::grpc::SingleResponse<super::messages::TestResult>;
-
-    fn fibonacci(&self, o: ::grpc::RequestOptions, p: super::benchmarks::FibonacciRequest) -> ::grpc::SingleResponse<super::messages::TestResult>;
-
-    fn chameneos(&self, o: ::grpc::RequestOptions, p: super::benchmarks::ChameneosRequest) -> ::grpc::SingleResponse<super::messages::TestResult>;
-
-    fn all_pairs_shortest_path(&self, o: ::grpc::RequestOptions, p: super::benchmarks::APSPRequest) -> ::grpc::SingleResponse<super::messages::TestResult>;
-
     fn atomic_broadcast(&self, o: ::grpc::RequestOptions, p: super::benchmarks::AtomicBroadcastRequest) -> ::grpc::SingleResponse<super::messages::TestResult>;
 }
 
@@ -53,15 +35,6 @@ pub struct BenchmarkRunnerClient {
     grpc_client: ::std::sync::Arc<::grpc::Client>,
     method_Ready: ::std::sync::Arc<::grpc::rt::MethodDescriptor<super::messages::ReadyRequest, super::messages::ReadyResponse>>,
     method_Shutdown: ::std::sync::Arc<::grpc::rt::MethodDescriptor<super::messages::ShutdownRequest, super::messages::ShutdownAck>>,
-    method_PingPong: ::std::sync::Arc<::grpc::rt::MethodDescriptor<super::benchmarks::PingPongRequest, super::messages::TestResult>>,
-    method_NetPingPong: ::std::sync::Arc<::grpc::rt::MethodDescriptor<super::benchmarks::PingPongRequest, super::messages::TestResult>>,
-    method_ThroughputPingPong: ::std::sync::Arc<::grpc::rt::MethodDescriptor<super::benchmarks::ThroughputPingPongRequest, super::messages::TestResult>>,
-    method_NetThroughputPingPong: ::std::sync::Arc<::grpc::rt::MethodDescriptor<super::benchmarks::ThroughputPingPongRequest, super::messages::TestResult>>,
-    method_AtomicRegister: ::std::sync::Arc<::grpc::rt::MethodDescriptor<super::benchmarks::AtomicRegisterRequest, super::messages::TestResult>>,
-    method_StreamingWindows: ::std::sync::Arc<::grpc::rt::MethodDescriptor<super::benchmarks::StreamingWindowsRequest, super::messages::TestResult>>,
-    method_Fibonacci: ::std::sync::Arc<::grpc::rt::MethodDescriptor<super::benchmarks::FibonacciRequest, super::messages::TestResult>>,
-    method_Chameneos: ::std::sync::Arc<::grpc::rt::MethodDescriptor<super::benchmarks::ChameneosRequest, super::messages::TestResult>>,
-    method_AllPairsShortestPath: ::std::sync::Arc<::grpc::rt::MethodDescriptor<super::benchmarks::APSPRequest, super::messages::TestResult>>,
     method_AtomicBroadcast: ::std::sync::Arc<::grpc::rt::MethodDescriptor<super::benchmarks::AtomicBroadcastRequest, super::messages::TestResult>>,
 }
 
@@ -77,60 +50,6 @@ impl ::grpc::ClientStub for BenchmarkRunnerClient {
             }),
             method_Shutdown: ::std::sync::Arc::new(::grpc::rt::MethodDescriptor {
                 name: "/kompics.benchmarks.BenchmarkRunner/Shutdown".to_string(),
-                streaming: ::grpc::rt::GrpcStreaming::Unary,
-                req_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-                resp_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-            }),
-            method_PingPong: ::std::sync::Arc::new(::grpc::rt::MethodDescriptor {
-                name: "/kompics.benchmarks.BenchmarkRunner/PingPong".to_string(),
-                streaming: ::grpc::rt::GrpcStreaming::Unary,
-                req_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-                resp_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-            }),
-            method_NetPingPong: ::std::sync::Arc::new(::grpc::rt::MethodDescriptor {
-                name: "/kompics.benchmarks.BenchmarkRunner/NetPingPong".to_string(),
-                streaming: ::grpc::rt::GrpcStreaming::Unary,
-                req_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-                resp_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-            }),
-            method_ThroughputPingPong: ::std::sync::Arc::new(::grpc::rt::MethodDescriptor {
-                name: "/kompics.benchmarks.BenchmarkRunner/ThroughputPingPong".to_string(),
-                streaming: ::grpc::rt::GrpcStreaming::Unary,
-                req_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-                resp_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-            }),
-            method_NetThroughputPingPong: ::std::sync::Arc::new(::grpc::rt::MethodDescriptor {
-                name: "/kompics.benchmarks.BenchmarkRunner/NetThroughputPingPong".to_string(),
-                streaming: ::grpc::rt::GrpcStreaming::Unary,
-                req_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-                resp_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-            }),
-            method_AtomicRegister: ::std::sync::Arc::new(::grpc::rt::MethodDescriptor {
-                name: "/kompics.benchmarks.BenchmarkRunner/AtomicRegister".to_string(),
-                streaming: ::grpc::rt::GrpcStreaming::Unary,
-                req_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-                resp_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-            }),
-            method_StreamingWindows: ::std::sync::Arc::new(::grpc::rt::MethodDescriptor {
-                name: "/kompics.benchmarks.BenchmarkRunner/StreamingWindows".to_string(),
-                streaming: ::grpc::rt::GrpcStreaming::Unary,
-                req_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-                resp_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-            }),
-            method_Fibonacci: ::std::sync::Arc::new(::grpc::rt::MethodDescriptor {
-                name: "/kompics.benchmarks.BenchmarkRunner/Fibonacci".to_string(),
-                streaming: ::grpc::rt::GrpcStreaming::Unary,
-                req_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-                resp_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-            }),
-            method_Chameneos: ::std::sync::Arc::new(::grpc::rt::MethodDescriptor {
-                name: "/kompics.benchmarks.BenchmarkRunner/Chameneos".to_string(),
-                streaming: ::grpc::rt::GrpcStreaming::Unary,
-                req_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-                resp_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-            }),
-            method_AllPairsShortestPath: ::std::sync::Arc::new(::grpc::rt::MethodDescriptor {
-                name: "/kompics.benchmarks.BenchmarkRunner/AllPairsShortestPath".to_string(),
                 streaming: ::grpc::rt::GrpcStreaming::Unary,
                 req_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
                 resp_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
@@ -152,42 +71,6 @@ impl BenchmarkRunner for BenchmarkRunnerClient {
 
     fn shutdown(&self, o: ::grpc::RequestOptions, p: super::messages::ShutdownRequest) -> ::grpc::SingleResponse<super::messages::ShutdownAck> {
         self.grpc_client.call_unary(o, p, self.method_Shutdown.clone())
-    }
-
-    fn ping_pong(&self, o: ::grpc::RequestOptions, p: super::benchmarks::PingPongRequest) -> ::grpc::SingleResponse<super::messages::TestResult> {
-        self.grpc_client.call_unary(o, p, self.method_PingPong.clone())
-    }
-
-    fn net_ping_pong(&self, o: ::grpc::RequestOptions, p: super::benchmarks::PingPongRequest) -> ::grpc::SingleResponse<super::messages::TestResult> {
-        self.grpc_client.call_unary(o, p, self.method_NetPingPong.clone())
-    }
-
-    fn throughput_ping_pong(&self, o: ::grpc::RequestOptions, p: super::benchmarks::ThroughputPingPongRequest) -> ::grpc::SingleResponse<super::messages::TestResult> {
-        self.grpc_client.call_unary(o, p, self.method_ThroughputPingPong.clone())
-    }
-
-    fn net_throughput_ping_pong(&self, o: ::grpc::RequestOptions, p: super::benchmarks::ThroughputPingPongRequest) -> ::grpc::SingleResponse<super::messages::TestResult> {
-        self.grpc_client.call_unary(o, p, self.method_NetThroughputPingPong.clone())
-    }
-
-    fn atomic_register(&self, o: ::grpc::RequestOptions, p: super::benchmarks::AtomicRegisterRequest) -> ::grpc::SingleResponse<super::messages::TestResult> {
-        self.grpc_client.call_unary(o, p, self.method_AtomicRegister.clone())
-    }
-
-    fn streaming_windows(&self, o: ::grpc::RequestOptions, p: super::benchmarks::StreamingWindowsRequest) -> ::grpc::SingleResponse<super::messages::TestResult> {
-        self.grpc_client.call_unary(o, p, self.method_StreamingWindows.clone())
-    }
-
-    fn fibonacci(&self, o: ::grpc::RequestOptions, p: super::benchmarks::FibonacciRequest) -> ::grpc::SingleResponse<super::messages::TestResult> {
-        self.grpc_client.call_unary(o, p, self.method_Fibonacci.clone())
-    }
-
-    fn chameneos(&self, o: ::grpc::RequestOptions, p: super::benchmarks::ChameneosRequest) -> ::grpc::SingleResponse<super::messages::TestResult> {
-        self.grpc_client.call_unary(o, p, self.method_Chameneos.clone())
-    }
-
-    fn all_pairs_shortest_path(&self, o: ::grpc::RequestOptions, p: super::benchmarks::APSPRequest) -> ::grpc::SingleResponse<super::messages::TestResult> {
-        self.grpc_client.call_unary(o, p, self.method_AllPairsShortestPath.clone())
     }
 
     fn atomic_broadcast(&self, o: ::grpc::RequestOptions, p: super::benchmarks::AtomicBroadcastRequest) -> ::grpc::SingleResponse<super::messages::TestResult> {
@@ -227,114 +110,6 @@ impl BenchmarkRunnerServer {
                     {
                         let handler_copy = handler_arc.clone();
                         ::grpc::rt::MethodHandlerUnary::new(move |o, p| handler_copy.shutdown(o, p))
-                    },
-                ),
-                ::grpc::rt::ServerMethod::new(
-                    ::std::sync::Arc::new(::grpc::rt::MethodDescriptor {
-                        name: "/kompics.benchmarks.BenchmarkRunner/PingPong".to_string(),
-                        streaming: ::grpc::rt::GrpcStreaming::Unary,
-                        req_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-                        resp_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-                    }),
-                    {
-                        let handler_copy = handler_arc.clone();
-                        ::grpc::rt::MethodHandlerUnary::new(move |o, p| handler_copy.ping_pong(o, p))
-                    },
-                ),
-                ::grpc::rt::ServerMethod::new(
-                    ::std::sync::Arc::new(::grpc::rt::MethodDescriptor {
-                        name: "/kompics.benchmarks.BenchmarkRunner/NetPingPong".to_string(),
-                        streaming: ::grpc::rt::GrpcStreaming::Unary,
-                        req_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-                        resp_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-                    }),
-                    {
-                        let handler_copy = handler_arc.clone();
-                        ::grpc::rt::MethodHandlerUnary::new(move |o, p| handler_copy.net_ping_pong(o, p))
-                    },
-                ),
-                ::grpc::rt::ServerMethod::new(
-                    ::std::sync::Arc::new(::grpc::rt::MethodDescriptor {
-                        name: "/kompics.benchmarks.BenchmarkRunner/ThroughputPingPong".to_string(),
-                        streaming: ::grpc::rt::GrpcStreaming::Unary,
-                        req_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-                        resp_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-                    }),
-                    {
-                        let handler_copy = handler_arc.clone();
-                        ::grpc::rt::MethodHandlerUnary::new(move |o, p| handler_copy.throughput_ping_pong(o, p))
-                    },
-                ),
-                ::grpc::rt::ServerMethod::new(
-                    ::std::sync::Arc::new(::grpc::rt::MethodDescriptor {
-                        name: "/kompics.benchmarks.BenchmarkRunner/NetThroughputPingPong".to_string(),
-                        streaming: ::grpc::rt::GrpcStreaming::Unary,
-                        req_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-                        resp_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-                    }),
-                    {
-                        let handler_copy = handler_arc.clone();
-                        ::grpc::rt::MethodHandlerUnary::new(move |o, p| handler_copy.net_throughput_ping_pong(o, p))
-                    },
-                ),
-                ::grpc::rt::ServerMethod::new(
-                    ::std::sync::Arc::new(::grpc::rt::MethodDescriptor {
-                        name: "/kompics.benchmarks.BenchmarkRunner/AtomicRegister".to_string(),
-                        streaming: ::grpc::rt::GrpcStreaming::Unary,
-                        req_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-                        resp_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-                    }),
-                    {
-                        let handler_copy = handler_arc.clone();
-                        ::grpc::rt::MethodHandlerUnary::new(move |o, p| handler_copy.atomic_register(o, p))
-                    },
-                ),
-                ::grpc::rt::ServerMethod::new(
-                    ::std::sync::Arc::new(::grpc::rt::MethodDescriptor {
-                        name: "/kompics.benchmarks.BenchmarkRunner/StreamingWindows".to_string(),
-                        streaming: ::grpc::rt::GrpcStreaming::Unary,
-                        req_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-                        resp_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-                    }),
-                    {
-                        let handler_copy = handler_arc.clone();
-                        ::grpc::rt::MethodHandlerUnary::new(move |o, p| handler_copy.streaming_windows(o, p))
-                    },
-                ),
-                ::grpc::rt::ServerMethod::new(
-                    ::std::sync::Arc::new(::grpc::rt::MethodDescriptor {
-                        name: "/kompics.benchmarks.BenchmarkRunner/Fibonacci".to_string(),
-                        streaming: ::grpc::rt::GrpcStreaming::Unary,
-                        req_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-                        resp_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-                    }),
-                    {
-                        let handler_copy = handler_arc.clone();
-                        ::grpc::rt::MethodHandlerUnary::new(move |o, p| handler_copy.fibonacci(o, p))
-                    },
-                ),
-                ::grpc::rt::ServerMethod::new(
-                    ::std::sync::Arc::new(::grpc::rt::MethodDescriptor {
-                        name: "/kompics.benchmarks.BenchmarkRunner/Chameneos".to_string(),
-                        streaming: ::grpc::rt::GrpcStreaming::Unary,
-                        req_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-                        resp_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-                    }),
-                    {
-                        let handler_copy = handler_arc.clone();
-                        ::grpc::rt::MethodHandlerUnary::new(move |o, p| handler_copy.chameneos(o, p))
-                    },
-                ),
-                ::grpc::rt::ServerMethod::new(
-                    ::std::sync::Arc::new(::grpc::rt::MethodDescriptor {
-                        name: "/kompics.benchmarks.BenchmarkRunner/AllPairsShortestPath".to_string(),
-                        streaming: ::grpc::rt::GrpcStreaming::Unary,
-                        req_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-                        resp_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
-                    }),
-                    {
-                        let handler_copy = handler_arc.clone();
-                        ::grpc::rt::MethodHandlerUnary::new(move |o, p| handler_copy.all_pairs_shortest_path(o, p))
                     },
                 ),
                 ::grpc::rt::ServerMethod::new(

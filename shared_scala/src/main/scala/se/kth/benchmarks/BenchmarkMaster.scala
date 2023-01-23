@@ -75,44 +75,6 @@ class BenchmarkMaster(val runnerPort: Int, val masterPort: Int, val waitFor: Int
       }
     }
 
-    override def pingPong(request: PingPongRequest): Future[TestResult] = queueIfNotReady {
-      val b = benchmarks.pingPong;
-      runBenchmark(b, request)
-    };
-    override def netPingPong(request: PingPongRequest): Future[TestResult] = queueIfNotReady {
-      val b = benchmarks.netPingPong;
-      runBenchmark(b, request)
-    };
-    override def netThroughputPingPong(request: ThroughputPingPongRequest): Future[TestResult] = queueIfNotReady {
-      val b = benchmarks.netThroughputPingPong;
-      runBenchmark(b, request)
-    };
-    override def throughputPingPong(request: ThroughputPingPongRequest): Future[TestResult] = queueIfNotReady {
-      val b = benchmarks.throughputPingPong;
-      runBenchmark(b, request)
-    };
-    override def atomicRegister(request: AtomicRegisterRequest): Future[TestResult] = queueIfNotReady {
-      val b = benchmarks.atomicRegister;
-      runBenchmark(b, request)
-    };
-
-    override def streamingWindows(request: StreamingWindowsRequest): Future[TestResult] = queueIfNotReady {
-      val b = benchmarks.streamingWindows;
-      runBenchmark(b, request)
-    }
-
-    override def allPairsShortestPath(request: APSPRequest): Future[TestResult] = queueIfNotReady {
-      val b = benchmarks.allPairsShortestPath;
-      runBenchmark(b, request)
-    }
-    override def chameneos(request: ChameneosRequest): Future[TestResult] = queueIfNotReady {
-      val b = benchmarks.chameneos;
-      runBenchmark(b, request)
-    }
-    override def fibonacci(request: FibonacciRequest): Future[TestResult] = queueIfNotReady {
-      val b = benchmarks.fibonacci;
-      runBenchmark(b, request)
-    }
     override def atomicBroadcast(request: AtomicBroadcastRequest): Future[TestResult] = queueIfNotReady {
       val b = benchmarks.atomicBroadcast;
       runBenchmark(b, request)

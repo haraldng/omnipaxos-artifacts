@@ -1,4 +1,3 @@
-#![feature(array_map)]
 #![feature(unsized_locals)]
 pub mod benchmark;
 pub mod benchmark_client;
@@ -135,7 +134,7 @@ pub mod test_utils {
         let mut implemented: Vec<String> = Vec::new();
         let mut not_implemented: Vec<String> = Vec::new();
 
-        let mut check_result = |label: &str, tr: messages::TestResult| {
+        let _check_result = |label: &str, tr: messages::TestResult| {
             if tr.has_success() {
                 let s = tr.get_success();
                 assert_eq!(s.run_results.len(), s.number_of_runs as usize);
@@ -233,135 +232,6 @@ pub mod test_utils {
             }
         }
 
-        /*
-         * Ping Pong
-         */
-        let mut ppr = benchmarks::PingPongRequest::new();
-        ppr.set_number_of_messages(100);
-        let ppres_f =
-            bench_stub.ping_pong(grpc::RequestOptions::default(), ppr.clone()).drop_metadata();
-        let ppres = ppres_f.wait().expect("pp result");
-        //assert!(ppres.has_success(), "PingPong TestResult should have been a success!");
-        check_result("PingPong", ppres);
-
-        let nppres_f =
-            bench_stub.net_ping_pong(grpc::RequestOptions::default(), ppr.clone()).drop_metadata();
-        let nppres = nppres_f.wait().expect("npp result");
-        //assert!(nppres.has_success(), "NetPingPong TestResult should have been a success!");
-        check_result("NetPingPong", nppres);
-
-        /*
-         * (Net) Throughput Ping Pong
-         */
-        let mut tppr = benchmarks::ThroughputPingPongRequest::new();
-        tppr.set_messages_per_pair(100);
-        tppr.set_pipeline_size(10);
-        tppr.set_parallelism(2);
-        tppr.set_static_only(true);
-        let tppres_f = bench_stub
-            .throughput_ping_pong(grpc::RequestOptions::default(), tppr.clone())
-            .drop_metadata();
-        let tppres = tppres_f.wait().expect("tpp result");
-        // assert!(
-        //     tppres.has_success(),
-        //     "ThroughputPingPong (Static) TestResult should have been a success!"
-        // );
-        check_result("ThroughputPingPong (Static)", tppres);
-
-        let ntppres_f = bench_stub
-            .net_throughput_ping_pong(grpc::RequestOptions::default(), tppr.clone())
-            .drop_metadata();
-        let ntppres = ntppres_f.wait().expect("ntpp result");
-        // assert!(
-        //     ntppres.has_success(),
-        //     "NetThroughputPingPong (Static) TestResult should have been a success!"
-        // );
-        check_result("NetThroughputPingPong (Static)", ntppres);
-
-        tppr.set_static_only(false);
-        let tppres2_f = bench_stub
-            .throughput_ping_pong(grpc::RequestOptions::default(), tppr.clone())
-            .drop_metadata();
-        let tppres2 = tppres2_f.wait().expect("tpp result");
-        // assert!(
-        //     tppres2.has_success(),
-        //     "ThroughputPingPong (GC) TestResult should have been a success!"
-        // );
-        check_result("ThroughputPingPong (GC)", tppres2);
-
-        let ntppres2_f = bench_stub
-            .net_throughput_ping_pong(grpc::RequestOptions::default(), tppr.clone())
-            .drop_metadata();
-        let ntppres2 = ntppres2_f.wait().expect("ntpp result");
-        // assert!(
-        //     ntppres2.has_success(),
-        //     "NetThroughputPingPong (GC) TestResult should have been a success!"
-        // );
-        check_result("NetThroughputPingPong (GC)", ntppres2);
-
-        /*
-         * Atomic Register
-         */
-        let mut nnar_request = benchmarks::AtomicRegisterRequest::new();
-        nnar_request.set_read_workload(0.5);
-        nnar_request.set_write_workload(0.5);
-        nnar_request.set_partition_size(3);
-        nnar_request.set_number_of_keys(500);
-
-        let nnares_f = bench_stub
-            .atomic_register(grpc::RequestOptions::default(), nnar_request)
-            .drop_metadata();
-        let nnares = nnares_f.wait().expect("nnar result");
-        check_result("Atomic Register", nnares);
-
-        /*
-         * Streaming Windows
-         */
-        let mut sw_request = benchmarks::StreamingWindowsRequest::new();
-        sw_request.set_batch_size(10);
-        sw_request.set_number_of_partitions(2);
-        sw_request.set_number_of_windows(2);
-        sw_request.set_window_size("10ms".to_string());
-        sw_request.set_window_size_amplification(1000);
-
-        let swres_f = bench_stub
-            .streaming_windows(grpc::RequestOptions::default(), sw_request)
-            .drop_metadata();
-        let swres = swres_f.wait().expect("sw result");
-        check_result("Streaming Windows", swres);
-
-        /*
-         * Fibonacci
-         */
-        let mut fibr = benchmarks::FibonacciRequest::new();
-        fibr.set_fib_number(15);
-        let fibres_f = bench_stub.fibonacci(grpc::RequestOptions::default(), fibr).drop_metadata();
-        let fibres = fibres_f.wait().expect("fib result");
-        check_result("Fibonacci", fibres);
-
-        /*
-         * Chameneos
-         */
-        let mut chamr = benchmarks::ChameneosRequest::new();
-        chamr.set_number_of_chameneos(10);
-        chamr.set_number_of_meetings(100);
-        let chamres_f =
-            bench_stub.chameneos(grpc::RequestOptions::default(), chamr).drop_metadata();
-        let chamres = chamres_f.wait().expect("cham result");
-        check_result("Chameneos", chamres);
-
-        /*
-         * All-Pairs Shortest Path
-         */
-        let mut apspr = benchmarks::APSPRequest::new();
-        apspr.set_number_of_nodes(12);
-        apspr.set_block_size(4);
-        let apspres_f = bench_stub
-            .all_pairs_shortest_path(grpc::RequestOptions::default(), apspr)
-            .drop_metadata();
-        let apspres = apspres_f.wait().expect("apsp result");
-        check_result("AllPairsShortestPath", apspres);
-
         info!(logger, "Sending shutdown request to master");
         let mut sreq = messages::ShutdownRequest::new();
         sreq.set_force(false);
@@ -414,7 +284,7 @@ pub mod test_utils {
         let mut implemented: Vec<String> = Vec::new();
         let mut not_implemented: Vec<String> = Vec::new();
 
-        let mut check_result = |label: &str, tr: messages::TestResult| {
+        let _check_result = |label: &str, tr: messages::TestResult| {
             if tr.has_success() {
                 let s = tr.get_success();
                 assert_eq!(s.run_results.len(), s.number_of_runs as usize);
@@ -481,74 +351,7 @@ pub mod test_utils {
             }
         }
 
-        /*
-         * Ping Pong
-         */
-        let mut ppr = benchmarks::PingPongRequest::new();
-        ppr.set_number_of_messages(100);
-        let ppres_f =
-            bench_stub.ping_pong(grpc::RequestOptions::default(), ppr.clone()).drop_metadata();
-        let ppres = ppres_f.wait().expect("pp result");
-        check_result("PingPong", ppres);
-
-        /*
-         * Throughput Ping Pong
-         */
-        let mut tppr = benchmarks::ThroughputPingPongRequest::new();
-        tppr.set_messages_per_pair(100);
-        tppr.set_pipeline_size(10);
-        tppr.set_parallelism(2);
-        tppr.set_static_only(true);
-        let tppres_f = bench_stub
-            .throughput_ping_pong(grpc::RequestOptions::default(), tppr.clone())
-            .drop_metadata();
-        let tppres = tppres_f.wait().expect("tpp result");
-        check_result("ThroughputPingPong (Static)", tppres);
-
-        tppr.set_static_only(false);
-        let tppres2_f = bench_stub
-            .throughput_ping_pong(grpc::RequestOptions::default(), tppr.clone())
-            .drop_metadata();
-        let tppres2 = tppres2_f.wait().expect("tpp result");
-        // assert!(
-        //     tppres2.has_success(),
-        //     "ThroughputPingPong (GC) TestResult should have been a success!"
-        // );
-        check_result("ThroughputPingPong (GC)", tppres2);
-
-        /*
-         * Fibonacci
-         */
-        let mut fibr = benchmarks::FibonacciRequest::new();
-        fibr.set_fib_number(15);
-        let fibres_f = bench_stub.fibonacci(grpc::RequestOptions::default(), fibr).drop_metadata();
-        let fibres = fibres_f.wait().expect("fib result");
-        check_result("Fibonacci", fibres);
-
-        /*
-         * Chameneos
-         */
-        let mut chamr = benchmarks::ChameneosRequest::new();
-        chamr.set_number_of_chameneos(10);
-        chamr.set_number_of_meetings(100);
-        let chamres_f =
-            bench_stub.chameneos(grpc::RequestOptions::default(), chamr).drop_metadata();
-        let chamres = chamres_f.wait().expect("cham result");
-        check_result("Chameneos", chamres);
-
-        /*
-         * All-Pairs Shortest Path
-         */
-        let mut apspr = benchmarks::APSPRequest::new();
-        apspr.set_number_of_nodes(12);
-        apspr.set_block_size(4);
-        let apspres_f = bench_stub
-            .all_pairs_shortest_path(grpc::RequestOptions::default(), apspr)
-            .drop_metadata();
-        let apspres = apspres_f.wait().expect("apsp result");
-        check_result("AllPairsShortestPath", apspres);
-
-        info!(logger, "Sending shutdown request to runner");
+       info!(logger, "Sending shutdown request to runner");
         runner_shutdown.store(true, Ordering::Relaxed);
         runner_handle.thread().unpark();
 
@@ -818,51 +621,6 @@ mod tests {
 
         fn box_clone(&self) -> Box<dyn BenchmarkFactory> { Box::new(TestFactory {}) }
 
-        fn ping_pong(&self) -> Result<Box<dyn AbstractBenchmark>, NotImplementedError> {
-            Ok(TestLocalBench {}.into())
-        }
-
-        fn net_ping_pong(
-            &self,
-        ) -> Result<Box<dyn AbstractDistributedBenchmark>, NotImplementedError> {
-            Ok(TestDistributedBench::new().into())
-        }
-
-        fn throughput_ping_pong(&self) -> Result<Box<dyn AbstractBenchmark>, NotImplementedError> {
-            Ok(TestLocalBench {}.into())
-        }
-
-        fn net_throughput_ping_pong(
-            &self,
-        ) -> Result<Box<dyn AbstractDistributedBenchmark>, NotImplementedError> {
-            Ok(TestDistributedBench::new().into())
-        }
-
-        fn atomic_register(
-            &self,
-        ) -> Result<Box<dyn AbstractDistributedBenchmark>, NotImplementedError> {
-            Ok(TestDistributedBench::new().into())
-        }
-
-        fn streaming_windows(
-            &self,
-        ) -> Result<Box<dyn AbstractDistributedBenchmark>, NotImplementedError> {
-            Ok(TestDistributedBench::new().into())
-        }
-
-        fn fibonacci(&self) -> Result<Box<dyn AbstractBenchmark>, NotImplementedError> {
-            Ok(TestLocalBench {}.into())
-        }
-
-        fn chameneos(&self) -> Result<Box<dyn AbstractBenchmark>, NotImplementedError> {
-            Ok(TestLocalBench {}.into())
-        }
-
-        fn all_pairs_shortest_path(
-            &self,
-        ) -> Result<Box<dyn AbstractBenchmark>, NotImplementedError> {
-            Ok(TestLocalBench {}.into())
-        }
     }
 
     impl benchmarks_grpc::BenchmarkRunner for TestFactory {
@@ -885,127 +643,6 @@ mod tests {
             unimplemented!();
         }
 
-        fn ping_pong(
-            &self,
-            _o: grpc::RequestOptions,
-            p: benchmarks::PingPongRequest,
-        ) -> grpc::SingleResponse<messages::TestResult> {
-            println!("Got ping_pong req: {}", p.number_of_messages);
-            let bench = benchmark::BenchmarkFactory::ping_pong(self);
-            let f = benchmark_runner::run_async(move || match bench {
-                Ok(b) => b.run(Box::new(p)).into(),
-                Err(e) => Err(BenchmarkError::NotImplemented(e)).into(),
-            })
-            .map_err(|e| {
-                println!("Converting benchmark error into grpc error: {:?}", e);
-                e.into()
-            });
-            grpc::SingleResponse::no_metadata(f)
-        }
-
-        fn net_ping_pong(
-            &self,
-            _o: grpc::RequestOptions,
-            _p: benchmarks::PingPongRequest,
-        ) -> grpc::SingleResponse<messages::TestResult> {
-            grpc::SingleResponse::completed(benchmark_runner::not_implemented())
-        }
-
-        fn throughput_ping_pong(
-            &self,
-            _o: grpc::RequestOptions,
-            p: benchmarks::ThroughputPingPongRequest,
-        ) -> grpc::SingleResponse<messages::TestResult> {
-            println!("Got req: {:?}", p);
-            let bench = benchmark::BenchmarkFactory::throughput_ping_pong(self);
-            let f = benchmark_runner::run_async(move || match bench {
-                Ok(b) => b.run(Box::new(p)).into(),
-                Err(e) => Err(BenchmarkError::NotImplemented(e)).into(),
-            })
-            .map_err(|e| {
-                println!("Converting benchmark error into grpc error: {:?}", e);
-                e.into()
-            });
-            grpc::SingleResponse::no_metadata(f)
-        }
-
-        fn net_throughput_ping_pong(
-            &self,
-            _o: grpc::RequestOptions,
-            _p: benchmarks::ThroughputPingPongRequest,
-        ) -> grpc::SingleResponse<messages::TestResult> {
-            grpc::SingleResponse::completed(benchmark_runner::not_implemented())
-        }
-
-        fn atomic_register(
-            &self,
-            _o: grpc::RequestOptions,
-            _p: benchmarks::AtomicRegisterRequest,
-        ) -> grpc::SingleResponse<messages::TestResult> {
-            grpc::SingleResponse::completed(benchmark_runner::not_implemented())
-        }
-
-        fn streaming_windows(
-            &self,
-            _o: grpc::RequestOptions,
-            _p: benchmarks::StreamingWindowsRequest,
-        ) -> grpc::SingleResponse<messages::TestResult> {
-            grpc::SingleResponse::completed(benchmark_runner::not_implemented())
-        }
-
-        fn fibonacci(
-            &self,
-            _o: grpc::RequestOptions,
-            p: benchmarks::FibonacciRequest,
-        ) -> grpc::SingleResponse<messages::TestResult> {
-            println!("Got fibonacci req: {:?}", p);
-            let bench = benchmark::BenchmarkFactory::fibonacci(self);
-            let f = benchmark_runner::run_async(move || match bench {
-                Ok(b) => b.run(Box::new(p)).into(),
-                Err(e) => Err(BenchmarkError::NotImplemented(e)).into(),
-            })
-            .map_err(|e| {
-                println!("Converting benchmark error into grpc error: {:?}", e);
-                e.into()
-            });
-            grpc::SingleResponse::no_metadata(f)
-        }
-
-        fn chameneos(
-            &self,
-            _o: grpc::RequestOptions,
-            p: benchmarks::ChameneosRequest,
-        ) -> grpc::SingleResponse<messages::TestResult> {
-            println!("Got chameneos req: {:?}", p);
-            let bench = benchmark::BenchmarkFactory::chameneos(self);
-            let f = benchmark_runner::run_async(move || match bench {
-                Ok(b) => b.run(Box::new(p)).into(),
-                Err(e) => Err(BenchmarkError::NotImplemented(e)).into(),
-            })
-            .map_err(|e| {
-                println!("Converting benchmark error into grpc error: {:?}", e);
-                e.into()
-            });
-            grpc::SingleResponse::no_metadata(f)
-        }
-
-        fn all_pairs_shortest_path(
-            &self,
-            _o: grpc::RequestOptions,
-            p: benchmarks::APSPRequest,
-        ) -> grpc::SingleResponse<messages::TestResult> {
-            println!("Got APSP req: {:?}", p);
-            let bench = benchmark::BenchmarkFactory::all_pairs_shortest_path(self);
-            let f = benchmark_runner::run_async(move || match bench {
-                Ok(b) => b.run(Box::new(p)).into(),
-                Err(e) => Err(BenchmarkError::NotImplemented(e)).into(),
-            })
-            .map_err(|e| {
-                println!("Converting benchmark error into grpc error: {:?}", e);
-                e.into()
-            });
-            grpc::SingleResponse::no_metadata(f)
-        }
     }
 
     #[test]

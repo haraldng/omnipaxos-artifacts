@@ -369,20 +369,6 @@ pub trait BenchmarkFactory: Send + Sync {
     fn by_label(&self, label: &str) -> Result<AbstractBench, NotImplementedError>;
     fn box_clone(&self) -> Box<dyn BenchmarkFactory>;
 
-    fn ping_pong(&self) -> Result<Box<dyn AbstractBenchmark>, NotImplementedError>;
-    fn net_ping_pong(&self) -> Result<Box<dyn AbstractDistributedBenchmark>, NotImplementedError>;
-    fn throughput_ping_pong(&self) -> Result<Box<dyn AbstractBenchmark>, NotImplementedError>;
-    fn net_throughput_ping_pong(
-        &self,
-    ) -> Result<Box<dyn AbstractDistributedBenchmark>, NotImplementedError>;
-    fn atomic_register(&self)
-        -> Result<Box<dyn AbstractDistributedBenchmark>, NotImplementedError>;
-    fn streaming_windows(
-        &self,
-    ) -> Result<Box<dyn AbstractDistributedBenchmark>, NotImplementedError>;
-    fn fibonacci(&self) -> Result<Box<dyn AbstractBenchmark>, NotImplementedError>;
-    fn chameneos(&self) -> Result<Box<dyn AbstractBenchmark>, NotImplementedError>;
-    fn all_pairs_shortest_path(&self) -> Result<Box<dyn AbstractBenchmark>, NotImplementedError>;
     fn atomic_broadcast(
         &self,
     ) -> Result<Box<dyn AbstractDistributedBenchmark>, NotImplementedError>;
@@ -619,52 +605,6 @@ pub(crate) mod tests {
                 Test3B::LABEL => self.net_ping_pong().map_into(),
                 _ => Err(NotImplementedError::NotFound),
             }
-        }
-
-        fn ping_pong(&self) -> Result<Box<dyn AbstractBenchmark>, NotImplementedError> {
-            Ok(Test2B {}.into())
-        }
-
-        fn net_ping_pong(
-            &self,
-        ) -> Result<Box<dyn AbstractDistributedBenchmark>, NotImplementedError> {
-            Ok(Test3B {}.into())
-        }
-
-        fn throughput_ping_pong(&self) -> Result<Box<dyn AbstractBenchmark>, NotImplementedError> {
-            Ok(Test2B {}.into())
-        }
-
-        fn net_throughput_ping_pong(
-            &self,
-        ) -> Result<Box<dyn AbstractDistributedBenchmark>, NotImplementedError> {
-            Ok(Test3B {}.into())
-        }
-
-        fn atomic_register(
-            &self,
-        ) -> Result<Box<dyn AbstractDistributedBenchmark>, NotImplementedError> {
-            Ok(Test3B {}.into())
-        }
-
-        fn streaming_windows(
-            &self,
-        ) -> Result<Box<dyn AbstractDistributedBenchmark>, NotImplementedError> {
-            Ok(Test3B {}.into())
-        }
-
-        fn fibonacci(&self) -> Result<Box<dyn AbstractBenchmark>, NotImplementedError> {
-            Ok(Test2B {}.into())
-        }
-
-        fn chameneos(&self) -> Result<Box<dyn AbstractBenchmark>, NotImplementedError> {
-            Ok(Test2B {}.into())
-        }
-
-        fn all_pairs_shortest_path(
-            &self,
-        ) -> Result<Box<dyn AbstractBenchmark>, NotImplementedError> {
-            Ok(Test2B {}.into())
         }
 
         fn atomic_broadcast(

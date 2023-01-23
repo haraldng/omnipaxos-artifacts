@@ -52,14 +52,5 @@ trait DistributedBenchmark {
 trait BenchmarkFactory {
   //import kompics.benchmarks.benchmarks._;
 
-  def pingPong(): Benchmark;
-  def netPingPong(): DistributedBenchmark;
-  def throughputPingPong(): Benchmark;
-  def netThroughputPingPong(): DistributedBenchmark;
-  def atomicRegister(): DistributedBenchmark;
-  def streamingWindows(): DistributedBenchmark;
-  def allPairsShortestPath(): Benchmark;
-  def chameneos(): Benchmark;
-  def fibonacci: Benchmark;
   def atomicBroadcast(): DistributedBenchmark;
 }
