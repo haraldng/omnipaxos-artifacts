@@ -1,6 +1,6 @@
 use super::*;
 use benchmark_suite_shared::{
-    benchmark_runner::{not_implemented},
+    benchmark_runner::not_implemented,
     kompics_benchmarks::{benchmarks, benchmarks_grpc, messages},
 };
 

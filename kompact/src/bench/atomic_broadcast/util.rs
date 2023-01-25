@@ -18,6 +18,7 @@ pub(crate) mod exp_util {
     use std::{path::PathBuf, time::Duration};
 
     pub const TCP_NODELAY: bool = true;
+    pub const NODES_CONF: &str = "../nodes.conf";
     pub const CONFIG_PATH: &str = "./configs/atomic_broadcast.conf";
     pub const PAXOS_PATH: &str = "paxos_replica";
     pub const RAFT_PATH: &str = "raft_replica";
@@ -192,8 +193,9 @@ pub mod benchmark_master {
     use kompact::prelude::{ActorPath, SystemField};
     use quanta::Instant;
     use std::{
-        fs::{create_dir_all, OpenOptions},
-        io::Write,
+        fs::{create_dir_all, File, OpenOptions},
+        io,
+        io::{BufRead, Write},
         path::PathBuf,
         time::{Duration, SystemTime},
     };
@@ -241,26 +243,34 @@ pub mod benchmark_master {
         client_timeout_factor
     }
 
-    pub fn load_pid_map<P>(path: P, nodes: &[ActorPath]) -> HashMap<ActorPath, u32>
-    where
-        P: Into<PathBuf>,
-    {
-        let p: PathBuf = path.into();
-        let config = HoconLoader::new()
-            .load_file(p)
-            .expect("Failed to load file")
-            .hocon()
-            .expect("Failed to load as HOCON");
-        let mut pid_map = HashMap::with_capacity(nodes.len());
-        for ap in nodes {
-            let addr_str = ap.address().to_string();
-            let pid = config["deployment"][addr_str.as_str()]
-                .as_i64()
-                .unwrap_or_else(|| panic!("Failed to load pid map of {}", addr_str))
-                as u32;
-            pid_map.insert(ap.clone(), pid);
+    pub fn load_pid_map(path: &str, nodes: &[ActorPath]) -> HashMap<ActorPath, u32> {
+        let mut ip_pid_map = HashMap::with_capacity(nodes.len());
+        let mut ap_pid_map = HashMap::with_capacity(nodes.len());
+        let file = File::open(path)
+            .unwrap_or_else(|_| panic!("Failed to open configuration file: {:?}", path));
+        let lines = io::BufReader::new(file).lines();
+        for line in lines {
+            if let Ok(l) = line {
+                let split = l.split('|').collect::<Vec<&str>>();
+                assert_eq!(
+                    split.len(),
+                    3,
+                    "Invalid format in configuration file: {}. Each line should be formatted as: <ip> | <path> | <id>",
+                    l
+                );
+                let ip = split[0].trim();
+                let pid = split[2].trim().parse::<u32>().unwrap();
+                ip_pid_map.insert(ip.to_string(), pid);
+            }
         }
-        pid_map
+        for node in nodes {
+            let ip = node.address().to_string();
+            let pid = ip_pid_map
+                .get(ip.as_str())
+                .unwrap_or_else(|| panic!("Could not find pid for ip: {:?}", ip));
+            ap_pid_map.insert(node.clone(), *pid);
+        }
+        ap_pid_map
     }
 
     pub fn persist_timestamp_results(

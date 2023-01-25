@@ -312,9 +312,9 @@ private def readNodes(p: Path): List[NodeEntry] = {
 		val nodesS = read! p;
 		val nodeLines = nodesS.split("\n").filterNot(_.contains("#")).toList;
 		nodeLines.map { l =>
-			val ls = l.split("""\s\|\s""");
+			val ls = l.split("""\s\|\s|\s""");
 			println(s"Got ${ls.mkString}");
-			assert(ls.size == 2);
+			assert(ls.size == 3);
 			val node = ls(0).trim;
 			val path = ls(1).trim;
 			NodeEntry(node, 45678, path)

@@ -342,31 +342,33 @@ impl DistributedBenchmarkMaster for AtomicBroadcastMaster {
         self.iteration_id += 1;
         let num_nodes_needed = self.num_nodes_needed.expect("No cached num_nodes") as usize;
         let mut nodes = d;
-        nodes.truncate(num_nodes_needed);
         // `client_timeout` is only overwritten if simulate_partition is turned on
         #[allow(unused_mut)]
         let (mut client_timeout, preloaded_log_size) = load_benchmark_config(CONFIG_PATH);
         let pid_map: Option<HashMap<ActorPath, u32>> = if cfg!(feature = "use_pid_map") {
-            Some(load_pid_map(CONFIG_PATH, nodes.as_slice()))
+            Some(load_pid_map(NODES_CONF, nodes.as_slice()))
         } else {
             None
         };
         let mut nodes_id: HashMap<u64, ActorPath> = HashMap::new();
         match &pid_map {
             Some(pm) => {
-                for (ap, pid) in pm {
+                for (ap, pid) in pm
+                    .iter()
+                    .filter(|(_, pid)| **pid <= num_nodes_needed as u32)
+                {
                     nodes_id.insert(*pid as u64, ap.clone());
-                }
-                nodes.clear();
-                for i in 1..=(num_nodes_needed as u64) {
-                    nodes.push(nodes_id.get(&i).unwrap().clone());
                 }
             }
             None => {
-                for (id, ap) in nodes.iter().enumerate() {
+                for (id, ap) in nodes.iter().take(num_nodes_needed).enumerate() {
                     nodes_id.insert(id as u64 + 1, ap.clone());
                 }
             }
+        }
+        nodes.clear();
+        for i in 1..=(num_nodes_needed as u64) {
+            nodes.push(nodes_id.get(&i).unwrap().clone());
         }
         let warmup_latch = Arc::new(CountdownEvent::new(1));
         #[cfg(feature = "simulate_partition")]
