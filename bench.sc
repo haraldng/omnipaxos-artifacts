@@ -78,7 +78,9 @@ def client(name: String, master: AddressArg, runid: String, publicif: String, cl
 
 @arg(doc ="Run benchmarks using a cluster of nodes.")
 @main
-def remote(masterConf: Path = defaultMasterFile, withNodes: Path = defaultNodesFile, testing: Boolean = false, impls: Seq[String] = Seq.empty, benchmarks: Seq[String] = Seq.empty, runName: String = ""): Unit = {
+def remote(masterConf: Path = defaultMasterFile, withNodes: Path = defaultNodesFile, testing: Boolean = false, runName: String = ""): Unit = {
+	val impls = Seq("KOMPACTMIX")
+	val benchmarks = Seq("ATOMICBROADCAST")
 	val (masterIp, login) = readMaster(masterConf)
 	val runnerAddr = s"$masterIp:45678"
 	val masterAddr = s"$masterIp:45679"
@@ -123,7 +125,9 @@ def remote(masterConf: Path = defaultMasterFile, withNodes: Path = defaultNodesF
 
 @arg(doc ="Run benchmarks using a cluster of nodes.")
 @main
-def fakeRemote(withClients: Int = 1, testing: Boolean = false, impls: Seq[String] = Seq.empty, benchmarks: Seq[String] = Seq.empty, remoteDir: os.Path = tmp.dir(), runName: String = ""): Unit = {
+def fakeRemote(withClients: Int = 1, testing: Boolean = false, remoteDir: os.Path = tmp.dir(), runName: String = "", test: Seq[Int] = Seq(1)): Unit = {
+	val impls = Seq("KOMPACTMIX")
+	val benchmarks = Seq("ATOMICBROADCAST")
 	val alwaysCopyFiles = List[Path](relp("bench.sc"), relp("benchmarks.sc"), relp("build.sc"), relp("client.sh"));
 	val masterBenches = runnersForImpl(impls, identity);
 	val (copyFiles: List[RelPath], copyDirectories: List[RelPath]) = masterBenches.map(_.mustCopy).flatten.distinct.partition(_.isFile) match {
@@ -183,52 +187,6 @@ def fakeRemote(withClients: Int = 1, testing: Boolean = false, impls: Seq[String
 	println(s"Finished all runners in ${format(totalTime)}");
 	println(s"There were $errors errors. Logs can be found in ${logdir}");
 	println(s"Run the following command to cleanup when remote logs are no longer required:\n	rm -rf $remoteDir");
-}
-
-
-@arg(doc ="Run local benchmarks only.")
-@main
-def local(testing: Boolean = false, impls: Seq[String] = Seq.empty, benchmarks: Seq[String] = Seq.empty, runName: String = ""): Unit = {
-	val runners = runnersForImpl(impls, _.localRunner(localRunnerAddr));
-	val totalStart = System.currentTimeMillis();
-	val runId = if (runName.isEmpty) s"run-${totalStart}" else runName;
-	val logdir = logs / runId;
-	mkdir! logdir;
-	val resultsdir = results / runId;
-	mkdir! resultsdir;
-	if (!testing) {
-		%%.apply(root/'bin/'bash, "-c",s"./exp_setup.sh $resultsdir");
-	}
-	val nRunners = runners.size;
-	var errors = 0;
-	runners.zipWithIndex.foreach { case (r, i) =>
-		try {
-			val experimentRunner = getExperimentRunner(r.symbol, resultsdir, testing, benchmarks, localRunnerAddr);
-			println(s"Starting run [${i+1}/$nRunners]: ${r.label}");
-			val start = System.currentTimeMillis();
-			val runner = r.run(logdir);
-			val experimenter = experimentRunner.run(logdir);
-			experimenter.waitFor();
-			runner.destroy();
-			val end = System.currentTimeMillis();
-			val time = FiniteDuration(end-start, MILLISECONDS);
-			endSeparator(r.label, experimentRunner.errorLog(logdir));
-			endSeparator(r.label, experimentRunner.outputLog(logdir));
-			if (experimenter.exitValue() == 0) {
-				println(s"Finished ${r.label} in ${format(time)}");
-			} else {
-				errors += 1;
-				println(s"Runner did not finish successfully: ${r.label} (${format(time)})");
-			}
-		} catch {
-			case e: Throwable => e.printStackTrace(Console.err);
-		}
-	}
-	val totalEnd = System.currentTimeMillis();
-	val totalTime = FiniteDuration(totalEnd-totalStart, MILLISECONDS);
-	println("========");
-	println(s"Finished all runners in ${format(totalTime)}");
-	println(s"There were $errors errors. Logs can be found in ${logdir}");
 }
 
 private def runnersForImpl[T](impls: Seq[String], mapper: BenchmarkImpl => T): List[T] = {

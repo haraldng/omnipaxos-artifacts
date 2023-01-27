@@ -56,95 +56,102 @@ object Benchmarks extends ParameterDescriptionImplicits {
   //implicit def seq2param[T: ParameterDescriptor](s: Seq[T]): ParameterSpace[T] = ParametersSparse1D(s);
 
   /*** split into different parameter spaces as some parameters are dependent on each other ***/
-  private val atomicBroadcastTestNodes = List(3);
-  private val atomicBroadcastTestDuration= List(1*60);
-  private val atomicBroadcastTestConcurrentProposals = List(200L);
+  private val testNodes = List(3, 5);
+  private val testDuration= List(1*10);
+  private val testConcurrentProposals = List(200L);
 
-  private val atomicBroadcastNodes = List(3);
-  private val atomicBroadcastDuration = List(5*60);
-  private val atomicBroadcastConcurrentProposals = List(500L, 5L.k, 50L.k);
+  private val nodes = List(3, 5);
+  private val chainedNodes = List(3);
+  private val quorumLossNodes = List(5);
+  private val reconfigNodes = List(5);
 
-  private val algorithms = List("vr", "multi-paxos", "paxos", "raft", "raft_pv_qc");
+  private val duration = List(5*60);
+  private val ConcurrentProposals = List(500L, 5L.k, 50L.k);
+
+  private val normalAlgorithms = List("paxos", "raft", "multi-paxos");
+  private val chainedAlgorithms = List("vr", "mple", "paxos", "raft", "raft_pv_qc");
+  private val quorumLossAlgorithms = List("vr", "multi-paxos", "paxos", "raft", "raft_pv_qc");
+  private val reconfigAlgorithms = List("paxos", "raft");
+
   private val reconfig = List("single", "majority");
   private val reconfig_policy = List("replace-follower", "replace-leader");
-  private val network_scenarios = List("fully_connected", "quorum_loss-60", "constrained_election-60", "chained-60")
-  private val election_timeout_ms = List(10L.k)
+  private val network_scenarios = List("fully_connected", "quorum_loss-5", "constrained_election-5", "chained-5")
+  private val election_timeout_ms = List(50L.k)
 
-  private val atomicBroadcastNormalTestSpace = ParameterSpacePB // test space without reconfig
+  private val normalTestSpace = ParameterSpacePB // test space
     .cross(
-      algorithms,
-      atomicBroadcastTestNodes,
-      atomicBroadcastTestDuration,
-      atomicBroadcastTestConcurrentProposals,
+      normalAlgorithms,
+      testNodes,
+      testDuration,
+      testConcurrentProposals,
       List("off"),
       List("none"),
       network_scenarios,
       election_timeout_ms
     );
 
-  private val atomicBroadcastReconfigTestSpace = ParameterSpacePB // test space with reconfig
+  private val normalSpace = ParameterSpacePB
     .cross(
-      algorithms,
-      atomicBroadcastTestNodes,
-      atomicBroadcastTestDuration,
-      atomicBroadcastTestConcurrentProposals,
-      reconfig,
-      reconfig_policy,
+      normalAlgorithms,
+      nodes,
+      duration,
+      ConcurrentProposals,
+      List("off"),
+      List("none"),
       List("fully_connected"),
-      election_timeout_ms
+      List(5L.k)
     );
 
-  private val atomicBroadcastTestSpace = atomicBroadcastNormalTestSpace.append(atomicBroadcastReconfigTestSpace);
-
-  private val atomicBroadcastNormalSpace = ParameterSpacePB
+  private val chainedSpace = ParameterSpacePB
     .cross(
-      List("paxos", "raft", "raft_pv_qc", "vr"),
-      atomicBroadcastNodes,
-      atomicBroadcastDuration,
+      chainedAlgorithms,
+      chainedNodes,
+      duration,
       List(500L),
       List("off"),
       List("none"),
       List("chained-60", "chained-120", "chained-240"),
-      List(5L, 50L, 500L, 5L.k)
-    );
-
-  private val multiPaxosNormalSpace = ParameterSpacePB
-    .cross(
-      List("multi-paxos"),
-      atomicBroadcastNodes,
-      atomicBroadcastDuration,
-      atomicBroadcastConcurrentProposals,
-      List("off"),
-      List("none"),
-      List("fully_connected"),
       election_timeout_ms
     );
 
-  private val atomicBroadcastReconfigSpace = ParameterSpacePB
+  private val quorumLossConstrainedSpace = ParameterSpacePB
     .cross(
-      algorithms,
-      atomicBroadcastNodes,
-      atomicBroadcastDuration,
-      atomicBroadcastConcurrentProposals,
-      reconfig,
+      quorumLossAlgorithms,
+      quorumLossNodes,
+      duration,
+      List(500L),
+      List("off"),
+      List("none"),
+      List("quorum_loss-60", "quorum_loss-120", "quorum_loss-240", "constrained_election-60", "constrained_election-120", "constrained_election-240"),
+      election_timeout_ms
+    );
+
+  private val reconfigSingleSpace = ParameterSpacePB
+    .cross(
+      reconfigAlgorithms,
+      reconfigNodes,
+      duration,
+      List(500L, 50L.k),
+      List("single"),
       reconfig_policy,
-      network_scenarios,
-      election_timeout_ms
+      List("fully_connected"),
+      List(5L.k)
     );
 
-  private val atomicBroadcastSpace = multiPaxosNormalSpace.append(atomicBroadcastNormalSpace);
-
-  private val latencySpace = ParameterSpacePB
+  private val reconfigMajoritySpace = ParameterSpacePB
     .cross(
-      algorithms,
-      List(3),
-      List(1L.k),
-      List(1L),
-      List("off"),
-      List("none"),
-      network_scenarios,
-      election_timeout_ms
+      reconfigAlgorithms,
+      reconfigNodes,
+      duration,
+      List(50L.k),
+      List("majority"),
+      reconfig_policy,
+      List("fully_connected"),
+      List(5L.k)
     );
+
+  private val normalPartialConnectivitySpace = normalSpace.append(chainedSpace).append(quorumLossConstrainedSpace);
+  private val reconfigSpace = reconfigSingleSpace.append(reconfigMajoritySpace);
 
   val atomicBroadcast = Benchmark(
     name = "Atomic Broadcast",
@@ -152,7 +159,7 @@ object Benchmarks extends ParameterDescriptionImplicits {
     invoke = (stub, request: AtomicBroadcastRequest) => {
       stub.atomicBroadcast(request)
     },
-    space = atomicBroadcastSpace
+    space = normalPartialConnectivitySpace
       .msg[AtomicBroadcastRequest] {
         case (a, nn, d, cp, r, rp, ns, et) =>
           AtomicBroadcastRequest(
@@ -166,7 +173,7 @@ object Benchmarks extends ParameterDescriptionImplicits {
             electionTimeoutMs = et,
           )
       },
-    testSpace = atomicBroadcastNormalTestSpace
+    testSpace = normalTestSpace
       .msg[AtomicBroadcastRequest] {
         case (a, nn, d, cp, r, rp, ns, et) =>
           AtomicBroadcastRequest(

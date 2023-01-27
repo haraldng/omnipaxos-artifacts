@@ -33,8 +33,8 @@ pretty-bytes            = {version = "0.2.2", optional = true}
 [dev-dependencies]
 uuid = { version = "0.8", features = ["v4"] }
 
-[profile.release]
-lto = true
+#[profile.release]
+#lto = true
 
 [features]
 travis_ci = ["slog/max_level_info", "slog/release_max_level_info"]
@@ -49,4 +49,4 @@ periodic_client_logging = []
 periodic_replica_logging = []
 simulate_partition = [] # simulate livelock and deadlock scenarios
 
-default = ["simulate_partition", "use_pid_map", "track_latency"]
+default = ["simulate_partition"]

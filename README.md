@@ -20,8 +20,8 @@ Our evaluation was performed in the following environment TODO
  Installation Guide and Building must be performed on all VM instances. For convenience, it is recommended to do all steps for the client instancce first and then create a machine image from it that is used to deploy the server instances. Furthermore, we recommend using the internal IP addresses when needed in the following steps.
 
 ## Configuration
-TODO 
-
+There are two configuration files that need to be set:
+- `master.conf`: The IP address, ssh username, and the path to the ssh private key separated by `|`.
 - Set the IP address, ssh username and key of master node in `master.conf`
 - Set the IP addresses and paths of the server nodes in `nodes.conf` 
 
