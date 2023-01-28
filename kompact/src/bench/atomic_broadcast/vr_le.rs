@@ -241,7 +241,7 @@ impl Actor for VRLeaderElectionComp {
         }
         self.stopped = true;
         if self.stopped_peers.len() == self.views.len() - 1 {
-            stop.0.reply(()).expect("Failed to reply to stop ask!");
+            let _ = stop.0.reply(());
         } else {
             self.stop_ask = Some(stop.0);
         }
@@ -369,11 +369,10 @@ impl Actor for VRLeaderElectionComp {
                     debug!(self.ctx.log(), "BLE got stopped from peer {}", pid);
                     if self.stopped && self.stopped_peers.len() == self.views.len() - 1 {
                         debug!(self.ctx.log(), "BLE got stopped from all peers");
-                        self.stop_ask
+                        let _ = self.stop_ask
                             .take()
                             .expect("No stop ask!")
-                            .reply(())
-                            .expect("Failed to reply ask");
+                            .reply(());
                     }
                 }
 

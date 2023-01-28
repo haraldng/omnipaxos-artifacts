@@ -337,7 +337,7 @@ impl MultiPaxosComp {
             for f in kill_futures {
                 f.await.expect("Failed to kill");
             }
-            ask.reply(Done).expect("Failed to reply done");
+            let _ = ask.reply(Done);
         })
     }
 
