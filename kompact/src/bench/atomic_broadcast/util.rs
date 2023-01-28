@@ -20,6 +20,7 @@ pub(crate) mod exp_util {
     pub const TCP_NODELAY: bool = true;
     pub const NODES_CONF: &str = "../nodes.conf";
     pub const CONFIG_PATH: &str = "./configs/atomic_broadcast.conf";
+    pub const RECONFIG_CONFIG_PATH: &str = "./configs/reconfig.conf";
     pub const PAXOS_PATH: &str = "paxos_replica";
     pub const RAFT_PATH: &str = "raft_replica";
     pub const MULTIPAXOS_PATH: &str = "mp_replica";
@@ -30,6 +31,10 @@ pub(crate) mod exp_util {
     pub const DATA_SIZE: usize = 8;
     pub const WARMUP_DURATION: Duration = Duration::from_secs(60);
     pub const COOLDOWN_DURATION: Duration = WARMUP_DURATION;
+    pub const STOP_TIMEOUT: Duration = Duration::from_secs(3 * 60);
+    pub const KILL_TIMEOUT: Duration = Duration::from_secs(3 * 60 + 20);
+
+    pub const RECONFIGURATION_PROPOSALS: u64 = 2 * 1000000;
 
     pub struct ExperimentParams {
         pub election_timeout_ms: u64,
@@ -45,12 +50,17 @@ pub(crate) mod exp_util {
 
     impl ExperimentParams {
         pub fn load_from_file(
-            path: &str,
             run_id: &str,
             meta_sub_dir: String,
             experiment_str: String,
             election_timeout_ms: u64,
+            is_reconfig_exp: bool,
         ) -> ExperimentParams {
+            let path = if is_reconfig_exp {
+                RECONFIG_CONFIG_PATH
+            } else {
+                CONFIG_PATH
+            };
             let p: PathBuf = path.into();
             let config = HoconLoader::new()
                 .load_file(p)
@@ -67,10 +77,14 @@ pub(crate) mod exp_util {
                 .as_i64()
                 .expect("Failed to load initial_election_factor")
                 as u64;
-            let preloaded_log_size = config["experiment"]["preloaded_log_size"]
-                .as_i64()
-                .expect("Failed to load preloaded_log_size")
-                as u64;
+            let preloaded_log_size = if is_reconfig_exp {
+                config["experiment"]["preloaded_log_size"]
+                    .as_i64()
+                    .expect("Failed to load preloaded_log_size")
+                    as u64
+            } else {
+                0
+            };
             let io_meta_results_path = format!("../meta_results/{}/io/{}/", run_id, meta_sub_dir); // meta_results/3-10k/io/paxos,3,10000.data
             ExperimentParams {
                 election_timeout_ms,
@@ -201,7 +215,7 @@ pub mod benchmark_master {
     };
 
     /// reads hocon config file and returns (timeout, meta_results path, size of preloaded_log)
-    pub fn load_benchmark_config<P>(path: P) -> (Duration, u64)
+    pub fn load_benchmark_config<P>(path: P, is_reconfig_exp: bool) -> (Duration, u64)
     where
         P: Into<PathBuf>,
     {
@@ -214,7 +228,7 @@ pub mod benchmark_master {
         let client_timeout = config["experiment"]["client_normal_timeout"]
             .as_duration()
             .expect("Failed to load client normal timeout");
-        let preloaded_log_size = if cfg!(feature = "preloaded_log") {
+        let preloaded_log_size = if is_reconfig_exp {
             config["experiment"]["preloaded_log_size"]
                 .as_i64()
                 .expect("Failed to load preloaded_log_size") as u64

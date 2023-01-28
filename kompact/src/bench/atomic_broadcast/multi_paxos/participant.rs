@@ -288,7 +288,7 @@ impl Actor for Participant {
         }
         self.stopped = true;
         if self.stopped_peers.len() == self.other_participants.len() {
-            stop.0.reply(()).expect("Failed to reply to stop ask!");
+            let _ = stop.0.reply(());
         } else {
             self.stop_ask = Some(stop.0);
         }
@@ -312,11 +312,10 @@ impl Actor for Participant {
                     debug!(self.ctx.log(), "Participant got stopped from peer {}", pid);
                     if self.stopped && self.stopped_peers.len() == self.other_participants.len() {
                         debug!(self.ctx.log(), "Participant got stopped from all peers");
-                        self.stop_ask
+                        let _ = self.stop_ask
                             .take()
                             .expect("No stop ask!")
-                            .reply(())
-                            .expect("Failed to reply ask");
+                            .reply(());
                     }
                 }
 

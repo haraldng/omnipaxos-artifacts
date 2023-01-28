@@ -40,6 +40,7 @@ use tikv_raft::{
     prelude::{Entry, Message as TikvRaftMsg, *},
     StateRole,
 };
+use crate::bench::atomic_broadcast::util::exp_util::STOP_TIMEOUT;
 
 const COMMUNICATOR: &str = "communicator";
 const DELAY: Duration = Duration::from_millis(0);
@@ -174,7 +175,7 @@ where
 
         let system = self.ctx.system();
         let conf_state: (Vec<u64>, Vec<u64>) = (self.initial_config.clone(), vec![]);
-        let store = if cfg!(feature = "preloaded_log") && self.initial_config.contains(&self.pid) {
+        let store = if self.experiment_params.preloaded_log_size > 0 && self.initial_config.contains(&self.pid) {
             let size = self.ctx.config()["experiment"]["preloaded_log_size"]
                 .as_i64()
                 .expect("Failed to load preloaded_log_size") as u64;
@@ -284,9 +285,13 @@ where
         let stop_f = raft
             .actor_ref()
             .ask_with(|p| RaftReplicaMsg::Stop(Ask::new(p, ())));
-        Handled::block_on(self, move |_| async move {
-            stop_f.await.expect("Failed to stop RaftReplica");
-        })
+        let _ = stop_f.wait_timeout(STOP_TIMEOUT).map_err(|_| {
+            warn!(
+                    self.ctx.log(),
+                    "Failed to stop child components within timeout"
+                );
+        });
+        Handled::Ok
     }
 
     fn kill_components(&mut self, ask: Ask<(), Done>) -> Handled {
@@ -306,7 +311,7 @@ where
             for f in kill_futures {
                 f.await.expect("Failed to kill");
             }
-            ask.reply(Done).expect("Failed to reply done");
+            let _ = ask.reply(Done);
         })
     }
 }
@@ -557,7 +562,7 @@ where
                 self.stop_timers();
                 self.stopped = true;
                 if self.stopped_peers.len() == self.num_peers {
-                    ask.reply(()).expect("Failed to reply Stop ask");
+                    let _ = ask.reply(());
                 } else {
                     self.stop_ask = Some(ask);
                 }
@@ -582,8 +587,7 @@ where
                     sequence.len(),
                     unique.len()
                 );
-                sr.reply(sequence)
-                    .expect("Failed to respond SequenceReq ask");
+                let _ = sr.reply(sequence);
             }
         }
         Handled::Ok
@@ -614,11 +618,10 @@ where
                 );
                 // info!(self.ctx.log(), "Got stop from {}. received: {}, num_peers: {}", from_pid, self.stopped_peers.len(), self.num_peers);
                 if self.stopped_peers.len() == self.num_peers && self.stopped {
-                    self.stop_ask
+                    let _ = self.stop_ask
                         .take()
                         .expect("No stop ask")
-                        .reply(())
-                        .expect("Failed to reply Stop ask");
+                        .reply(());
                 }
             }
             _ => {}

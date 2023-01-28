@@ -303,7 +303,7 @@ where
         skip_prepare_use_leader: Option<Leader<Ballot>>,
     ) -> Paxos<Ballot, S, P> {
         let reconfig_replica = raw_peers.is_none(); // replica to be used after reconfiguration
-        let initial_log = if cfg!(feature = "preloaded_log") && !reconfig_replica {
+        let initial_log = if self.is_reconfig_exp && !reconfig_replica {
             let size: u64 = self.experiment_params.preloaded_log_size;
             let mut preloaded_log = Vec::with_capacity(size as usize);
             for id in 1..=size {
@@ -675,11 +675,15 @@ where
             self.start_replica(unstarted_replica);
         }
 
-        Handled::block_on(self, move |_| async move {
-            for stop_f in stop_futures {
-                stop_f.await.expect("Failed to stop child components!");
-            }
-        })
+        for stop_f in stop_futures {
+            let _ = stop_f.wait_timeout(STOP_TIMEOUT).map_err(|_| {
+                warn!(
+                    self.ctx.log(),
+                    "Failed to stop child components within timeout"
+                );
+            });
+        }
+        Handled::Ok
     }
 
     fn kill_components(&mut self, ask: Ask<(), Done>) -> Handled {
@@ -713,7 +717,7 @@ where
             for f in kill_futures {
                 f.await.expect("Failed to kill child components");
             }
-            ask.reply(Done).unwrap();
+            let _ = ask.reply(Done);
         })
     }
 
@@ -802,7 +806,7 @@ where
     fn pull_sequence(&mut self, config_id: ConfigId, seq_len: u64, from_nodes: &[u64]) {
         let indices: Vec<(u64, SegmentIndex)> = self.get_node_segment_idx(seq_len, from_nodes);
         for (pid, segment_idx) in &indices {
-            info!(
+            debug!(
                 self.ctx.log(),
                 "Pull Sequence: Requesting segment from {}, config_id: {}, idx: {:?}",
                 pid,
@@ -845,7 +849,7 @@ where
                 };
                 let pid = active_config_ready_peers[idx];
                 let sr = SegmentRequest::with(config_id, *segment_idx, self.pid);
-                info!(
+                debug!(
                     self.ctx.log(),
                     "Retry SegmentRequest: pid: {}, active_peers: {:?}, {:?}",
                     pid,
@@ -904,7 +908,7 @@ where
             .expect("Should have all segments!");
         all_segments.sort_by_key(|s1| s1.get_from_idx());
         let len = all_segments.last().unwrap().get_to_idx() as usize;
-        info!(
+        debug!(
             self.ctx.log(),
             "Got complete sequence of config_id: {}, len: {}", config_id, len
         );
@@ -921,7 +925,7 @@ where
             .expect("Got all sequence transfer but no next config id!");
         if self.prev_sequences.len() + 1 == next_config_id as usize {
             // got all sequence transfers
-            info!(self.ctx.log(), "Got all previous sequences!");
+            debug!(self.ctx.log(), "Got all previous sequences!");
             self.start_replica(next_config_id);
         }
     }
@@ -962,7 +966,7 @@ where
             let est_size = std::mem::size_of_val(&st) + est_segment_size;
             self.io_metadata.update_sent_with_size(est_size);
         }
-        info!(
+        debug!(
             self.ctx.log(),
             "Replying to pid: {} with {} segment request: idx: {:?}",
             sr.requestor_pid,
@@ -1711,7 +1715,7 @@ where
                 self.stop_timer();
                 self.stopped = true;
                 if self.stopped_peers.len() == self.peers.len() {
-                    ask.reply(()).expect("Failed to reply stop ask");
+                    let _ = ask.reply(());
                 } else {
                     // have not got stop from all peers yet
                     self.stop_ask = Some(ask);
@@ -1774,11 +1778,10 @@ where
                         self.ctx.log(),
                         "PaxosReplica {} got stopped from all peers", self.config_id
                     );
-                    self.stop_ask
+                    let _ = self.stop_ask
                         .take()
                         .expect("No stop ask!")
-                        .reply(())
-                        .expect("Failed to reply stop ask!");
+                        .reply(());
                 }
             }
             _ => {}

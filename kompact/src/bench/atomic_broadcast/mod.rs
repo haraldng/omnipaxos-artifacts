@@ -12,3 +12,4 @@ mod raft;
 mod storage;
 mod util;
 mod vr_le;
+mod reconfig_client;

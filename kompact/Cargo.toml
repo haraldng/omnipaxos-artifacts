@@ -43,7 +43,6 @@ track_timeouts = [] # client keep tracks of which proposals timed out
 track_latency = [] # measure latency for proposals
 track_timestamps = []
 measure_io = ["pretty-bytes"]
-preloaded_log = []
 use_pid_map = [] # assign nodes to specific process ids
 periodic_client_logging = []
 periodic_replica_logging = []

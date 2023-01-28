@@ -40,20 +40,25 @@ impl DistributedBenchmarkClient for AtomicBroadcastClient {
 
     fn setup(&mut self, c: Self::ClientConf) -> Self::ClientData {
         println!("Setting up Atomic Broadcast (client)");
-        let mut conf = KompactConfig::default();
-        conf.load_config_file(CONFIG_PATH);
-        let bc = BufferConfig::from_config_file(CONFIG_PATH);
-        bc.validate();
-        let system = crate::kompact_system_provider::global()
-            .new_remote_system_with_threads_config("atomicbroadcast", 8, conf, bc, TCP_NODELAY);
         let (params, meta_subdir) = get_deser_clientparams_and_subdir(&c.experiment_str);
         let experiment_params = ExperimentParams::load_from_file(
-            CONFIG_PATH,
             params.run_id.as_str(),
             meta_subdir,
             c.experiment_str,
             params.election_timeout_ms,
+            params.is_reconfig_exp
         );
+        let path = if params.is_reconfig_exp {
+            RECONFIG_CONFIG_PATH
+        } else {
+            CONFIG_PATH
+        };
+        let mut conf = KompactConfig::default();
+        conf.load_config_file(path);
+        let bc = BufferConfig::from_config_file(path);
+        bc.validate();
+        let system = crate::kompact_system_provider::global()
+            .new_remote_system_with_threads_config("atomicbroadcast", 8, conf, bc, TCP_NODELAY);
         let initial_config: Vec<u64> = (1..=params.num_nodes).collect();
         let named_path = match params.algorithm.as_ref() {
             a if a == "paxos" || a == "vr" || a == "mple" => {
@@ -131,7 +136,6 @@ impl DistributedBenchmarkClient for AtomicBroadcastClient {
     fn cleanup_iteration(&mut self, last_iteration: bool) -> () {
         println!("Cleaning up Atomic Broadcast (client)");
         self.kill_child_components();
-        println!("KillAsk complete");
         if last_iteration {
             self.kill_parent_component_and_system();
         }
@@ -145,24 +149,21 @@ impl AtomicBroadcastClient {
                 .actor_ref()
                 .ask_with(|p| PaxosCompMsg::KillComponents(Ask::new(p, ())));
             kill_comps_f
-                .wait_timeout(Duration::from_secs(10))
-                .expect("Failed to kill components of PaxosComp");
+                .wait();
         }
         if let Some(raft) = &self.raft_comp {
             let kill_comps_f = raft
                 .actor_ref()
                 .ask_with(|p| RaftCompMsg::KillComponents(Ask::new(p, ())));
             kill_comps_f
-                .wait_timeout(Duration::from_secs(10))
-                .expect("Failed to kill components of RaftComp");
+                .wait();
         }
         if let Some(mp) = &self.multipaxos_comp {
             let kill_comps_f = mp
                 .actor_ref()
                 .ask_with(|p| MultPaxosCompMsg::KillComponents(Ask::new(p, ())));
             kill_comps_f
-                .wait_timeout(Duration::from_secs(10))
-                .expect("Failed to kill components of MultiPaxosComp");
+                .wait();
         }
     }
 
@@ -171,19 +172,19 @@ impl AtomicBroadcastClient {
         if let Some(replica) = self.paxos_comp.take() {
             let kill_replica_f = system.kill_notify(replica);
             kill_replica_f
-                .wait_timeout(REGISTER_TIMEOUT)
+                .wait_timeout(KILL_TIMEOUT)
                 .expect("Paxos Replica never died!");
         }
         if let Some(raft_replica) = self.raft_comp.take() {
             let kill_raft_f = system.kill_notify(raft_replica);
             kill_raft_f
-                .wait_timeout(REGISTER_TIMEOUT)
+                .wait_timeout(KILL_TIMEOUT)
                 .expect("Raft Replica never died!");
         }
         if let Some(mp_comp) = self.multipaxos_comp.take() {
             let kill_mp_f = system.kill_notify(mp_comp);
             kill_mp_f
-                .wait_timeout(REGISTER_TIMEOUT)
+                .wait_timeout(KILL_TIMEOUT)
                 .expect("MultiPaxosComp never died!");
         }
         system

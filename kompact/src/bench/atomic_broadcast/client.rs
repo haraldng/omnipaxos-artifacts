@@ -56,10 +56,6 @@ pub struct Client {
     late_responses: Vec<u64>,
     #[cfg(feature = "track_timestamps")]
     timestamps: HashMap<u64, Instant>,
-    #[cfg(feature = "preloaded_log")]
-    num_preloaded_proposals: u64,
-    #[cfg(feature = "preloaded_log")]
-    rem_preloaded_proposals: u64,
     #[cfg(feature = "simulate_partition")]
     partition_timer: Option<ScheduledTimer>,
     #[cfg(feature = "simulate_partition")]
@@ -79,7 +75,6 @@ impl Client {
         network_scenario: NetworkScenario,
         reconfig: Option<(ReconfigurationPolicy, Vec<u64>)>,
         timeout: Duration,
-        preloaded_log_size: u64,
         warmup_latch: Arc<CountdownEvent>,
         finished_latch: Arc<CountdownEvent>,
     ) -> Client {
@@ -93,7 +88,7 @@ impl Client {
             reconfig,
             warmup_latch,
             finished_latch,
-            latest_proposal_id: preloaded_log_size,
+            latest_proposal_id: 0,
             responses: HashMap::with_capacity(1000000),
             pending_proposals: HashMap::with_capacity(num_concurrent_proposals as usize),
             timeout,
@@ -117,10 +112,6 @@ impl Client {
             timestamps: HashMap::with_capacity(exp_duration as usize),
             #[cfg(feature = "track_timeouts")]
             late_responses: vec![],
-            #[cfg(feature = "preloaded_log")]
-            num_preloaded_proposals: preloaded_log_size,
-            #[cfg(feature = "preloaded_log")]
-            rem_preloaded_proposals: preloaded_log_size,
             #[cfg(feature = "simulate_partition")]
             partition_timer: None,
             #[cfg(feature = "simulate_partition")]
@@ -357,16 +348,16 @@ impl Client {
             ap.tell_serialised(NetStopMsg::Client, self)
                 .expect("Failed to send Client stop");
         }
-        let _ = self.schedule_once(COOLDOWN_DURATION, move |c, _| {
-            c.reply_stop_ask();
+        let _ = self.schedule_once(KILL_TIMEOUT, move |c, _| {
+            if !c.nodes.is_empty() {
+                warn!(c.ctx.log(), "Client did not get stop response from {:?}. Returning to BenchmarkMaster anyway who will force kill.", c.nodes.keys());
+                c.reply_stop_ask();
+            }
             Handled::Ok
         });
     }
 
     fn reply_stop_ask(&mut self) {
-        if !self.nodes.is_empty() {
-            warn!(self.ctx.log(), "Client did not get stop response from {:?}. Returning to BenchmarkMaster anyway who will force kill.", self.nodes);
-        }
         let stop_ask = self.stop_ask.take().unwrap();
         let num_decided = self.responses.len() as u64;
         let l = std::mem::take(&mut self.responses);
@@ -436,7 +427,7 @@ impl Client {
                     self.network_scenario,
                     fully_connected_node,
                     self.current_leader,
-                    self.responses.len()
+                    self.responses.len() + self.warmup_decided
                 );
                 for pid in &rest {
                     let ap = self.nodes.get(&pid).expect("No node ap");
@@ -517,7 +508,7 @@ impl Client {
                     "Creating partition. Disconnecting leader: {} from follower: {}, num_responses: {}",
                     self.current_leader,
                     disconnected_follower,
-                    self.responses.len()
+                    self.responses.len()  + self.warmup_decided
                 );
                 self.schedule_partition_recovery(duration);
             }
@@ -608,13 +599,15 @@ impl Client {
                 .expect("Failed to decrement warmup latch");
             Handled::Ok
         });
-        let timer = self.schedule_periodic(WINDOW_DURATION, WINDOW_DURATION, move |c, _| {
-            c.windowed_result
-                .windows
-                .push(c.warmup_decided + c.responses.len());
-            Handled::Ok
-        });
-        self.window_timer = Some(timer);
+        if self.reconfig.is_some() {
+            let timer = self.schedule_periodic(WINDOW_DURATION, WINDOW_DURATION, move |c, _| {
+                c.windowed_result
+                    .windows
+                    .push(c.warmup_decided + c.responses.len());
+                Handled::Ok
+            });
+            self.window_timer = Some(timer);
+        }
     }
 }
 
@@ -688,12 +681,8 @@ impl Actor for Client {
                         assert!(pid > 0);
                         self.current_leader = pid;
                         self.leader_round = round;
-                        if cfg!(feature = "preloaded_log") {
-                            return Handled::Ok; // wait until all preloaded responses before decrementing leader latch
-                        } else {
-                            info!(self.ctx.log(), "Got first leader: {}. Starting warmup", self.current_leader);
-                            self.start_warmup();
-                        }
+                        info!(self.ctx.log(), "Got first leader: {}. Starting warmup", self.current_leader);
+                        self.start_warmup();
                     }
                     AtomicBroadcastMsg::Leader(pid, round) if (self.state == ExperimentState::Running || self.state == ExperimentState::WarmUp) && round > self.leader_round => {
                         // info!(self.ctx.log(), "CHANGED LEADER: {}, ROUND: {}", pid, round);
@@ -739,17 +728,6 @@ impl Actor for Client {
                                 _ => {},
                             }
                         } else {
-                            #[cfg(feature = "preloaded_log")] {
-                                if id <= self.num_preloaded_proposals && self.state == ExperimentState::Setup {
-                                    self.current_leader = pr.latest_leader;
-                                    self.leader_round = pr.leader_round;
-                                    self.rem_preloaded_proposals -= 1;
-                                    if self.rem_preloaded_proposals == 0 {
-                                        info!(self.ctx.log(), "Got all preloaded responses. Starting warmup. Leader: {}", self.current_leader);
-                                        self.start_warmup();
-                                    }
-                                }
-                            }
                             #[cfg(feature = "track_timeouts")] {
                                 if self.timeouts.contains(&id) {
                                     /*if self.late_responses.is_empty() {
@@ -772,7 +750,11 @@ impl Actor for Client {
             },
             msg(stop): NetStopMsg [using StopMsgDeser] => {
                 if let NetStopMsg::Peer(pid) = stop {
-                    self.nodes.remove(&pid).unwrap_or_else(|| panic!("Got stop from unknown pid {}", pid));
+                    if self.nodes.remove(&pid).is_some() {
+                        if self.nodes.is_empty() {
+                            self.reply_stop_ask()
+                        }
+                    }
                 }
             },
             err(e) => error!(self.ctx.log(), "{}", &format!("Client failed to deserialise msg: {:?}", e)),
@@ -791,7 +773,7 @@ pub fn create_raw_proposal(id: u64) -> Vec<u8> {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-enum ExperimentState {
+pub(crate) enum ExperimentState {
     Setup,
     WarmUp,
     Running,
@@ -806,17 +788,17 @@ pub enum LocalClientMessage {
 }
 
 #[derive(Debug)]
-struct ProposalMetaData {
-    start_time: Option<Instant>,
-    timer: ScheduledTimer,
+pub struct ProposalMetaData {
+    pub(crate) start_time: Option<Instant>,
+    pub(crate) timer: ScheduledTimer,
 }
 
 impl ProposalMetaData {
-    fn with(start_time: Option<Instant>, timer: ScheduledTimer) -> ProposalMetaData {
+    pub(crate) fn with(start_time: Option<Instant>, timer: ScheduledTimer) -> ProposalMetaData {
         ProposalMetaData { start_time, timer }
     }
 
-    fn set_timer(&mut self, timer: ScheduledTimer) {
+    pub(crate) fn set_timer(&mut self, timer: ScheduledTimer) {
         self.timer = timer;
     }
 }

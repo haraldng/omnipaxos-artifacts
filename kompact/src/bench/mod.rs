@@ -1,6 +1,5 @@
 use super::*;
 use benchmark_suite_shared::benchmark::*;
-use std::time::Duration;
 
 pub mod atomic_broadcast;
 

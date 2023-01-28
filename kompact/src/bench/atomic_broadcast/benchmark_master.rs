@@ -15,6 +15,7 @@ use hdrhistogram::Histogram;
 use kompact::prelude::*;
 use std::{sync::Arc, time::Duration};
 use synchronoise::CountdownEvent;
+use crate::bench::atomic_broadcast::reconfig_client::ReconfigurationClient;
 
 pub struct AtomicBroadcastMaster {
     num_nodes: Option<u64>,
@@ -28,6 +29,7 @@ pub struct AtomicBroadcastMaster {
     finished_latch: Option<Arc<CountdownEvent>>,
     iteration_id: u32,
     client_comp: Option<Arc<Component<Client>>>,
+    reconfig_client_comp: Option<Arc<Component<ReconfigurationClient>>>,
     partitioning_actor: Option<Arc<Component<PartitioningActor>>>,
     latency_hist: Option<Histogram<u64>>,
     num_timed_out: Vec<u64>,
@@ -51,6 +53,7 @@ impl AtomicBroadcastMaster {
             finished_latch: None,
             iteration_id: 0,
             client_comp: None,
+            reconfig_client_comp: None,
             partitioning_actor: None,
             latency_hist: None,
             num_timed_out: vec![],
@@ -105,7 +108,6 @@ impl AtomicBroadcastMaster {
         nodes_id: HashMap<u64, ActorPath>,
         network_scenario: NetworkScenario,
         client_timeout: Duration,
-        preloaded_log_size: u64,
         warmup_latch: Arc<CountdownEvent>,
     ) -> (Arc<Component<Client>>, ActorPath) {
         let system = self.system.as_ref().unwrap();
@@ -122,7 +124,6 @@ impl AtomicBroadcastMaster {
                 network_scenario,
                 reconfig,
                 client_timeout,
-                preloaded_log_size,
                 warmup_latch,
                 finished_latch,
             )
@@ -136,6 +137,42 @@ impl AtomicBroadcastMaster {
             .register_by_alias(&client_comp, format!("client{}", &self.iteration_id))
             .wait_expect(REGISTER_TIMEOUT, "Failed to register alias for ClientComp");
         (client_comp, client_path)
+    }
+
+    fn create_reconfig_client(
+        &self,
+        nodes_id: HashMap<u64, ActorPath>,
+        client_timeout: Duration,
+        preloaded_log_size: u64,
+        leader_election_latch: Arc<CountdownEvent>,
+    ) -> (Arc<Component<ReconfigurationClient>>, ActorPath) {
+        let system = self.system.as_ref().unwrap();
+        let finished_latch = self.finished_latch.clone().unwrap();
+        /*** Setup client ***/
+        let initial_config: Vec<_> = (1..=self.num_nodes.unwrap()).map(|x| x as u64).collect();
+        let reconfig = self.reconfiguration.clone();
+        let (recofig_client_comp, unique_reg_f) = system.create_and_register(|| {
+            ReconfigurationClient::with(
+                initial_config,
+                RECONFIGURATION_PROPOSALS,
+                self.concurrent_proposals.unwrap(),
+                nodes_id,
+                reconfig,
+                client_timeout,
+                preloaded_log_size,
+                leader_election_latch,
+                finished_latch,
+            )
+        });
+        unique_reg_f.wait_expect(REGISTER_TIMEOUT, "Client failed to register!");
+        let client_comp_f = system.start_notify(&recofig_client_comp);
+        client_comp_f
+            .wait_timeout(REGISTER_TIMEOUT)
+            .expect("ClientComp never started!");
+        let client_path = system
+            .register_by_alias(&recofig_client_comp, format!("reconfig_client{}", &self.iteration_id))
+            .wait_expect(REGISTER_TIMEOUT, "Failed to register alias for ClientComp");
+        (recofig_client_comp, client_path)
     }
 
     fn validate_experiment_params(
@@ -313,9 +350,14 @@ impl DistributedBenchmarkMaster for AtomicBroadcastMaster {
             self.latency_hist =
                 Some(Histogram::<u64>::new(4).expect("Failed to create latency histogram"));
         }
+        let path = if self.reconfiguration.is_some() {
+            RECONFIG_CONFIG_PATH
+        } else {
+            CONFIG_PATH
+        };
         let mut conf = KompactConfig::default();
-        conf.load_config_file(CONFIG_PATH);
-        let bc = BufferConfig::from_config_file(CONFIG_PATH);
+        conf.load_config_file(path);
+        let bc = BufferConfig::from_config_file(path);
         bc.validate();
         let system = crate::kompact_system_provider::global()
             .new_remote_system_with_threads_config("atomicbroadcast", 4, conf, bc, TCP_NODELAY);
@@ -342,9 +384,14 @@ impl DistributedBenchmarkMaster for AtomicBroadcastMaster {
         self.iteration_id += 1;
         let num_nodes_needed = self.num_nodes_needed.expect("No cached num_nodes") as usize;
         let mut nodes = d;
+        let path = if self.reconfiguration.is_some() {
+            RECONFIG_CONFIG_PATH
+        } else {
+            CONFIG_PATH
+        };
         // `client_timeout` is only overwritten if simulate_partition is turned on
         #[allow(unused_mut)]
-        let (mut client_timeout, preloaded_log_size) = load_benchmark_config(CONFIG_PATH);
+        let (mut client_timeout, preloaded_log_size) = load_benchmark_config(path, self.reconfiguration.is_some());
         let pid_map: Option<HashMap<ActorPath, u32>> = if cfg!(feature = "use_pid_map") {
             Some(load_pid_map(NODES_CONF, nodes.as_slice()))
         } else {
@@ -373,39 +420,57 @@ impl DistributedBenchmarkMaster for AtomicBroadcastMaster {
         let warmup_latch = Arc::new(CountdownEvent::new(1));
         #[cfg(feature = "simulate_partition")]
         {
-            let client_timeout_factor = load_client_timeout_factor(CONFIG_PATH);
-            let mut client_timeout_ms = self.election_timeout_ms.unwrap() / client_timeout_factor;
-            if client_timeout_ms == 0 {
-                client_timeout_ms = 1;
+            if self.network_scenario != Some(NetworkScenario::FullyConnected) {
+                let client_timeout_factor = load_client_timeout_factor(CONFIG_PATH);
+                let mut client_timeout_ms = self.election_timeout_ms.unwrap() / client_timeout_factor;
+                if client_timeout_ms == 0 {
+                    client_timeout_ms = 1;
+                }
+                client_timeout = Duration::from_millis(client_timeout_ms);
             }
-            client_timeout = Duration::from_millis(client_timeout_ms);
         }
-        let (client_comp, client_path) = self.create_client(
-            nodes_id,
-            self.network_scenario.expect("No network scenario"),
-            client_timeout,
-            preloaded_log_size,
-            warmup_latch.clone(),
-        );
+        let client_path = match self.reconfiguration {
+            None => {
+                let (client_comp, client_path) = self.create_client(
+                    nodes_id,
+                    self.network_scenario.expect("No network scenario"),
+                    client_timeout,
+                    warmup_latch.clone(),
+                );
+                self.client_comp = Some(client_comp);
+                client_path
+            }
+            Some(_) => {
+                let (client_comp, client_path) = self.create_reconfig_client(
+                    nodes_id,
+                    client_timeout,
+                    preloaded_log_size,
+                    warmup_latch.clone(),
+                );
+                self.reconfig_client_comp = Some(client_comp);
+                client_path
+            }
+        };
         let partitioning_actor = self.initialise_iteration(nodes, client_path, pid_map);
         partitioning_actor
             .actor_ref()
             .tell(IterationControlMsg::Run);
         warmup_latch.wait(); // wait until leader is elected and warmup is completed
         self.partitioning_actor = Some(partitioning_actor);
-        self.client_comp = Some(client_comp);
     }
 
     fn run_iteration(&mut self) -> () {
         println!("Running Atomic Broadcast experiment!");
-        match self.client_comp {
-            Some(ref client_comp) => {
-                client_comp.actor_ref().tell(LocalClientMessage::Run);
-                let finished_latch = self.finished_latch.take().unwrap();
-                finished_latch.wait();
+        match self.reconfiguration {
+            None => {
+                self.client_comp.as_ref().unwrap().actor_ref().tell(LocalClientMessage::Run);
             }
-            _ => panic!("No client found!"),
+            Some(_) => {
+                self.reconfig_client_comp.as_ref().unwrap().actor_ref().tell(LocalClientMessage::Run);
+            },
         }
+        let finished_latch = self.finished_latch.take().unwrap();
+        finished_latch.wait();
     }
 
     fn cleanup_iteration(&mut self, last_iteration: bool, exec_time_millis: f64) -> () {
@@ -413,8 +478,17 @@ impl DistributedBenchmarkMaster for AtomicBroadcastMaster {
             "Cleaning up Atomic Broadcast (master) iteration {}. Exec_time: {}",
             self.iteration_id, exec_time_millis
         );
-        let client = self.client_comp.as_ref().unwrap().actor_ref();
-        let meta_results = self.get_meta_results_and_stop_client(client);
+        std::thread::sleep(COOLDOWN_DURATION);
+        let meta_results = match self.reconfiguration {
+            None => {
+                let client = self.client_comp.as_ref().unwrap().actor_ref();
+                self.get_meta_results_and_stop_client(client)
+            }
+            Some(_) => {
+                let client = self.reconfig_client_comp.as_ref().unwrap().actor_ref();
+                self.get_meta_results_and_stop_client(client)
+            }
+        };
         self.num_timed_out.push(meta_results.num_timed_out);
         self.num_retried.push(meta_results.num_retried);
         self.persist_meta_results(meta_results);
@@ -505,15 +579,22 @@ impl AtomicBroadcastMaster {
     ) -> MetaResults {
         let meta_results: MetaResults = client
             .ask_with(|promise| LocalClientMessage::Stop(Ask::new(promise, ())))
-            .wait_timeout(Duration::from_secs(60))
-            .expect("Client failed to Stop");
+            .wait();
         meta_results
     }
 
     fn kill_client(&mut self) {
         let system = self.system.as_mut().unwrap();
-        let client = self.client_comp.take().unwrap();
-        let kill_client_f = system.kill_notify(client);
+        let kill_client_f = match self.reconfiguration {
+            None => {
+                let client = self.client_comp.take().unwrap();
+                system.kill_notify(client)
+            },
+            Some(_) => {
+                let reconfig_client = self.reconfig_client_comp.take().unwrap();
+                system.kill_notify(reconfig_client)
+            }
+        };
         kill_client_f
             .wait_timeout(REGISTER_TIMEOUT)
             .expect("Client never died");
