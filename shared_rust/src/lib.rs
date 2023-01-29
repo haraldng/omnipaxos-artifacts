@@ -1,3 +1,4 @@
+#![feature(array_map)]
 #![feature(unsized_locals)]
 pub mod benchmark;
 pub mod benchmark_client;
