@@ -148,22 +148,22 @@ impl AtomicBroadcastClient {
             let kill_comps_f = paxos
                 .actor_ref()
                 .ask_with(|p| PaxosCompMsg::KillComponents(Ask::new(p, ())));
-            kill_comps_f
-                .wait();
+            let _ = kill_comps_f
+                .wait_timeout(KILL_TIMEOUT);
         }
         if let Some(raft) = &self.raft_comp {
             let kill_comps_f = raft
                 .actor_ref()
                 .ask_with(|p| RaftCompMsg::KillComponents(Ask::new(p, ())));
-            kill_comps_f
-                .wait();
+            let _ = kill_comps_f
+                .wait_timeout(KILL_TIMEOUT);
         }
         if let Some(mp) = &self.multipaxos_comp {
             let kill_comps_f = mp
                 .actor_ref()
                 .ask_with(|p| MultPaxosCompMsg::KillComponents(Ask::new(p, ())));
-            kill_comps_f
-                .wait();
+            let _ = kill_comps_f
+                .wait_timeout(KILL_TIMEOUT);
         }
     }
 

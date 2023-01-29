@@ -713,12 +713,16 @@ where
             let comm_f = system.kill_notify(communicator);
             kill_futures.push(comm_f);
         }
-        Handled::block_on(self, move |_| async move {
-            for f in kill_futures {
-                f.await.expect("Failed to kill child components");
-            }
-            let _ = ask.reply(Done);
-        })
+        for f in kill_futures {
+            let _ = f.wait_timeout(STOP_TIMEOUT).map_err(|_| {
+                warn!(
+                    self.ctx.log(),
+                    "Failed to kill child components within timeout"
+                );
+            });
+        }
+        let _ = ask.reply(Done);
+        Handled::Ok
     }
 
     fn propose(&self, p: Proposal) {
