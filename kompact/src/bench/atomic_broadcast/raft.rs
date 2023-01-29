@@ -307,12 +307,16 @@ where
             kill_futures.push(kill_comm);
         }
 
-        Handled::block_on(self, move |_| async move {
-            for f in kill_futures {
-                f.await.expect("Failed to kill");
-            }
-            let _ = ask.reply(Done);
-        })
+        for f in kill_futures {
+            f.wait_timeout(STOP_TIMEOUT).map_err(|_| {
+                warn!(
+                    self.ctx.log(),
+                    "Failed to kill child components within timeout"
+                );
+            });
+        }
+        let _ = ask.reply(Done);
+        Handled::Ok
     }
 }
 
