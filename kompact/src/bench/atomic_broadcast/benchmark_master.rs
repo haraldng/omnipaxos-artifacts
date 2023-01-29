@@ -108,6 +108,7 @@ impl AtomicBroadcastMaster {
         nodes_id: HashMap<u64, ActorPath>,
         network_scenario: NetworkScenario,
         client_timeout: Duration,
+        short_timeout: Duration,
         warmup_latch: Arc<CountdownEvent>,
     ) -> (Arc<Component<Client>>, ActorPath) {
         let system = self.system.as_ref().unwrap();
@@ -124,6 +125,7 @@ impl AtomicBroadcastMaster {
                 network_scenario,
                 reconfig,
                 client_timeout,
+                short_timeout,
                 warmup_latch,
                 finished_latch,
             )
@@ -389,9 +391,7 @@ impl DistributedBenchmarkMaster for AtomicBroadcastMaster {
         } else {
             CONFIG_PATH
         };
-        // `client_timeout` is only overwritten if simulate_partition is turned on
-        #[allow(unused_mut)]
-        let (mut client_timeout, preloaded_log_size) = load_benchmark_config(path, self.reconfiguration.is_some());
+        let (client_timeout, preloaded_log_size) = load_benchmark_config(path, self.reconfiguration.is_some());
         let pid_map: Option<HashMap<ActorPath, u32>> = if cfg!(feature = "use_pid_map") {
             Some(load_pid_map(NODES_CONF, nodes.as_slice()))
         } else {
@@ -418,23 +418,23 @@ impl DistributedBenchmarkMaster for AtomicBroadcastMaster {
             nodes.push(nodes_id.get(&i).unwrap().clone());
         }
         let warmup_latch = Arc::new(CountdownEvent::new(1));
-        #[cfg(feature = "simulate_partition")]
-        {
-            if self.network_scenario != Some(NetworkScenario::FullyConnected) {
-                let client_timeout_factor = load_client_timeout_factor(CONFIG_PATH);
-                let mut client_timeout_ms = self.election_timeout_ms.unwrap() / client_timeout_factor;
-                if client_timeout_ms == 0 {
-                    client_timeout_ms = 1;
-                }
-                client_timeout = Duration::from_millis(client_timeout_ms);
-            }
-        }
         let client_path = match self.reconfiguration {
             None => {
+                let short_timeout = if self.network_scenario != Some(NetworkScenario::FullyConnected) {
+                    let client_timeout_factor = load_client_timeout_factor(CONFIG_PATH);
+                    let mut short_timeout_ms = self.election_timeout_ms.unwrap() / client_timeout_factor;
+                    if short_timeout_ms < 25 {
+                        short_timeout_ms = 25;
+                    }
+                    Duration::from_millis(short_timeout_ms)
+                } else {
+                    client_timeout
+                };
                 let (client_comp, client_path) = self.create_client(
                     nodes_id,
                     self.network_scenario.expect("No network scenario"),
                     client_timeout,
+                    short_timeout,
                     warmup_latch.clone(),
                 );
                 self.client_comp = Some(client_comp);

@@ -35,6 +35,7 @@ pub struct Client {
     responses: HashMap<u64, Option<Duration>>,
     pending_proposals: HashMap<u64, ProposalMetaData>,
     timeout: Duration,
+    short_timeout: Duration,
     current_leader: u64,
     leader_round: u64,
     state: ExperimentState,
@@ -75,6 +76,7 @@ impl Client {
         network_scenario: NetworkScenario,
         reconfig: Option<(ReconfigurationPolicy, Vec<u64>)>,
         timeout: Duration,
+        short_timeout: Duration,
         warmup_latch: Arc<CountdownEvent>,
         finished_latch: Arc<CountdownEvent>,
     ) -> Client {
@@ -92,6 +94,7 @@ impl Client {
             responses: HashMap::with_capacity(1000000),
             pending_proposals: HashMap::with_capacity(num_concurrent_proposals as usize),
             timeout,
+            short_timeout,
             current_leader: 0,
             leader_round: 0,
             state: ExperimentState::Setup,
@@ -164,7 +167,8 @@ impl Client {
                 _ => None,
             };
             self.propose_normal(id);
-            let timer = self.schedule_once(self.timeout, move |c, _| c.proposal_timeout(id));
+            let timeout = self.get_timeout();
+            let timer = self.schedule_once(timeout, move |c, _| c.proposal_timeout(id));
             let proposal_meta = ProposalMetaData::with(current_time, timer);
             self.pending_proposals.insert(id, proposal_meta);
         }
@@ -230,15 +234,24 @@ impl Client {
         }
     }
 
+    fn get_timeout(&self) -> Duration {
+        if self.partition_timer.is_some() {
+            self.short_timeout
+        } else {
+            self.timeout
+        }
+    }
+
     fn proposal_timeout(&mut self, id: u64) -> Handled {
         if self.responses.contains_key(&id) {
             return Handled::Ok;
         }
         // info!(self.ctx.log(), "Timed out proposal {}", id);
         self.num_timed_out += 1;
+        let timeout = self.get_timeout();
         if self.state == ExperimentState::Running {
             self.propose_normal(id);
-            let _ = self.schedule_once(self.timeout, move |c, _| c.proposal_timeout(id));
+            let _ = self.schedule_once(timeout, move |c, _| c.proposal_timeout(id));
         }
         #[cfg(feature = "track_timeouts")]
         {
@@ -706,7 +719,7 @@ impl Actor for Client {
                                     if let Some(previous_ts) = std::mem::replace(&mut self.latest_decided_ts, Some(now)) {
                                         let down_time = now.duration_since(previous_ts);
                                         if down_time > self.longest_down_time.unwrap_or_default() {
-                                            // info!(self.ctx.log(), "new longest down time: {:?}, id: {}, leader: {}", down_time, id, self.current_leader);
+                                            info!(self.ctx.log(), "new longest down time: {:?}, id: {}, leader: {}", down_time, id, self.current_leader);
                                             self.longest_down_time = Some(down_time);
                                         }
                                     }
