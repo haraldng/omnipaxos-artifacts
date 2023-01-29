@@ -719,7 +719,7 @@ impl Actor for Client {
                                     if let Some(previous_ts) = std::mem::replace(&mut self.latest_decided_ts, Some(now)) {
                                         let down_time = now.duration_since(previous_ts);
                                         if down_time > self.longest_down_time.unwrap_or_default() {
-                                            info!(self.ctx.log(), "new longest down time: {:?}, id: {}, leader: {}", down_time, id, self.current_leader);
+                                            // info!(self.ctx.log(), "new longest down time: {:?}, id: {}, leader: {}", down_time, id, self.current_leader);
                                             self.longest_down_time = Some(down_time);
                                         }
                                     }
