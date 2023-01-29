@@ -24,6 +24,8 @@ sudo apt-get install sbt
 # Rustup
 curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain nightly
 source $HOME/.cargo/env
+rustup toolchain install nightly-2021-04-25
+rustup default nightly-2021-04-25
 
 # Ammonite
 sudo sh -c '(echo "#!/usr/bin/env sh" && curl -L https://github.com/com-lihaoyi/Ammonite/releases/download/2.3.8/2.12-2.3.8) > /usr/local/bin/amm && chmod +x /usr/local/bin/amm'
