@@ -37,6 +37,7 @@ pub struct AtomicBroadcastMaster {
     experiment_str: Option<String>,
     meta_results_path: Option<String>,
     meta_results_sub_dir: Option<String>,
+    lagging_delay_ms: u64
 }
 
 impl AtomicBroadcastMaster {
@@ -61,6 +62,7 @@ impl AtomicBroadcastMaster {
             experiment_str: None,
             meta_results_path: None,
             meta_results_sub_dir: None,
+            lagging_delay_ms: 0
         }
     }
 
@@ -109,6 +111,7 @@ impl AtomicBroadcastMaster {
         network_scenario: NetworkScenario,
         client_timeout: Duration,
         short_timeout: Duration,
+        lagging_delay_ms: u64,
         warmup_latch: Arc<CountdownEvent>,
     ) -> (Arc<Component<Client>>, ActorPath) {
         let system = self.system.as_ref().unwrap();
@@ -126,6 +129,7 @@ impl AtomicBroadcastMaster {
                 reconfig,
                 client_timeout,
                 short_timeout,
+                self.lagging_delay_ms,
                 warmup_latch,
                 finished_latch,
             )
@@ -337,6 +341,7 @@ impl DistributedBenchmarkMaster for AtomicBroadcastMaster {
                 let duration_ms = d.as_millis() as u64;
                 let election_timeout_ms = self.election_timeout_ms.unwrap();
                 let lagging_delay_ms = election_timeout_ms / LAGGING_DELAY_FACTOR;
+                self.lagging_delay_ms = lagging_delay_ms;
                 Duration::from_millis(duration_ms + lagging_delay_ms)
             }
             _ => Duration::from_secs(c.duration_secs),
@@ -435,6 +440,7 @@ impl DistributedBenchmarkMaster for AtomicBroadcastMaster {
                     self.network_scenario.expect("No network scenario"),
                     client_timeout,
                     short_timeout,
+                    self.lagging_delay_ms,
                     warmup_latch.clone(),
                 );
                 self.client_comp = Some(client_comp);
@@ -625,6 +631,7 @@ impl AtomicBroadcastMaster {
         self.experiment_str = None;
         self.meta_results_path = None;
         self.meta_results_sub_dir = None;
+        self.lagging_delay_ms = 0;
     }
 }
 

@@ -64,7 +64,10 @@ pub struct Client {
     #[cfg(feature = "simulate_partition")]
     longest_down_time: Option<Duration>,
     #[cfg(feature = "simulate_partition")]
-    latest_decided_ts: Option<Instant>,
+    partition_ts: Option<Instant>,
+    #[cfg(feature = "simulate_partition")]
+    proposal_id_when_partitioned: Option<u64>,
+    lagging_delay_ms: u64,
 }
 
 impl Client {
@@ -77,6 +80,7 @@ impl Client {
         reconfig: Option<(ReconfigurationPolicy, Vec<u64>)>,
         timeout: Duration,
         short_timeout: Duration,
+        lagging_delay_ms: u64,
         warmup_latch: Arc<CountdownEvent>,
         finished_latch: Arc<CountdownEvent>,
     ) -> Client {
@@ -122,7 +126,10 @@ impl Client {
             #[cfg(feature = "simulate_partition")]
             longest_down_time: None,
             #[cfg(feature = "simulate_partition")]
-            latest_decided_ts: None,
+            partition_ts: None,
+            #[cfg(feature = "simulate_partition")]
+            proposal_id_when_partitioned: None,
+            lagging_delay_ms
         }
     }
 
@@ -235,7 +242,7 @@ impl Client {
     }
 
     fn get_timeout(&self) -> Duration {
-        if self.partition_timer.is_some() {
+        if self.partition_ts.is_some() && self.longest_down_time.is_none() {
             self.short_timeout
         } else {
             self.timeout
@@ -284,15 +291,12 @@ impl Client {
                     self.cancel_timer(timer);
                 }
                 if self.network_scenario != NetworkScenario::FullyConnected
-                    && !self.pending_proposals.is_empty()
+                    && self.longest_down_time.is_none()
                 {
-                    // there was some unfinished proposals... assume they got decided now.
-                    let previous_ts = self.latest_decided_ts.take().unwrap();
-                    let down_time = now.duration_since(previous_ts);
-                    if down_time > self.longest_down_time.unwrap_or_default() {
-                        warn!(self.ctx.log(), "Longest down time recorded when experiment finished: Protocol probably did not recover from the partition");
-                        self.longest_down_time = Some(down_time);
-                    }
+                    // there was some unfinished proposals... pretend they got decided now.
+                    let down_time = now.duration_since(self.partition_ts.take().unwrap());
+                    info!(self.ctx.log(), "Down time recorded when experiment finished: Protocol did not recover from the partition");
+                    self.longest_down_time = Some(down_time);
                 }
             }
             self.finished_latch
@@ -425,6 +429,8 @@ impl Client {
             })
             .copied()
             .collect();
+        let now = self.clock.now();
+        self.partition_ts = Some(now);
         match self.network_scenario {
             NetworkScenario::QuorumLoss(duration) => {
                 let fully_connected_node = *followers.first().unwrap(); // first follower to be partitioned from the leader
@@ -450,51 +456,57 @@ impl Client {
                     )
                     .expect("Should serialise");
                 }
+                self.proposal_id_when_partitioned = Some(self.latest_proposal_id);
                 self.schedule_partition_recovery(duration);
             }
             NetworkScenario::ConstrainedElection(duration) => {
                 let lagging_follower = *followers.first().unwrap(); // first follower to be partitioned from the leader
                 info!(self.ctx.log(), "Creating partition {:?}. leader: {}, term: {}, lagging follower connected to majority: {}, num_responses: {}", self.network_scenario, self.current_leader, self.leader_round, lagging_follower, self.responses.len() + self.warmup_decided);
-                for pid in &followers {
-                    let (disconnect_peers, delay) = if pid == &lagging_follower {
-                        let delay = false; // lagging node disconnects directly
-                        (vec![self.current_leader], delay) // lagging node only disconnects from leader
-                    } else {
-                        // the rest disconnects to everybody but the lagging node
-                        let disconnect_peers: Vec<_> = self
-                            .nodes
-                            .keys()
-                            .filter(|p| *p != &lagging_follower && *p != pid)
-                            .copied()
-                            .collect();
-                        let delay = true; // others disconnects with a delay
-                        (disconnect_peers, delay)
-                    };
-                    info!(
-                        self.ctx.log(),
-                        "Node {} getting disconnected from {:?}", pid, disconnect_peers
-                    );
-                    let ap = self.nodes.get(&pid).expect("No follower ap");
-                    ap.tell_serialised(
-                        PartitioningExpMsg::DisconnectPeers((disconnect_peers, delay), None),
-                        self,
-                    )
+                let lagging_ap = self.nodes.get(&lagging_follower).expect("No node ap");
+                lagging_ap.tell_serialised(
+                    PartitioningExpMsg::DisconnectPeers((vec![self.current_leader], false), None),
+                    self,
+                )
                     .expect("Should serialise");
-                }
-                let non_lagging: Vec<u64> = followers
-                    .iter()
-                    .filter(|pid| *pid != &lagging_follower)
-                    .copied()
-                    .collect();
                 leader_ap
                     .tell_serialised(
                         PartitioningExpMsg::DisconnectPeers(
-                            (non_lagging, false),
+                            (vec![], false),
                             Some(lagging_follower),
                         ),
                         self,
                     )
                     .expect("Should serialise");
+                let leader_ap_cloned = leader_ap.clone();
+                let _ = self.schedule_once(Duration::from_millis(self.lagging_delay_ms), move |c, _| {
+                    let non_lagging_followers: Vec<u64> = followers.iter().filter(|pid| *pid != &lagging_follower).copied().collect();
+                    for non_lagging in &non_lagging_followers {
+                        let disconnect_peers: Vec<_> = c
+                            .nodes
+                            .keys()
+                            .filter(|p| *p != &lagging_follower && p != &non_lagging)
+                            .copied()
+                            .collect();
+                        let ap = c.nodes.get(&non_lagging).expect("No node ap");
+                        ap.tell_serialised(
+                            PartitioningExpMsg::DisconnectPeers((disconnect_peers, false), None),
+                            c,
+                        )
+                        .expect("Should serialise");
+                    }
+                    leader_ap_cloned
+                        .tell_serialised(
+                            PartitioningExpMsg::DisconnectPeers(
+                                (non_lagging_followers, false),
+                                Some(lagging_follower),
+                            ),
+                            c,
+                        )
+                        .expect("Should serialise");
+
+                    c.proposal_id_when_partitioned = Some(c.latest_proposal_id);
+                    Handled::Ok
+                });
                 self.schedule_partition_recovery(duration);
             }
             NetworkScenario::Chained(duration) => {
@@ -523,9 +535,12 @@ impl Client {
                     disconnected_follower,
                     self.responses.len()  + self.warmup_decided
                 );
+                self.proposal_id_when_partitioned = Some(self.latest_proposal_id);
                 self.schedule_partition_recovery(duration);
             }
-            NetworkScenario::PeriodicFull(duration) => {
+            NetworkScenario::PeriodicFull(_duration) => {
+                unimplemented!()
+                /*
                 // Periodic full scenario
                 let disconnected_follower = *followers.first().unwrap();
                 let timer =
@@ -537,15 +552,11 @@ impl Client {
                     });
                 self.partition_timer = Some(timer);
                 return; // end of periodic partition
+                */
             }
             NetworkScenario::FullyConnected => {
                 return;
             }
-        }
-        #[cfg(feature = "simulate_partition")]
-        {
-            let now = self.clock.now();
-            self.latest_decided_ts = Some(now);
         }
     }
 
@@ -569,6 +580,7 @@ impl Client {
         }
     }
 
+    /*
     #[cfg(feature = "simulate_partition")]
     fn periodic_partition(&mut self, disconnected_follower: u64) {
         if self.recover_periodic_partition {
@@ -602,6 +614,7 @@ impl Client {
         }
         self.recover_periodic_partition = !self.recover_periodic_partition;
     }
+    */
 
     fn start_warmup(&mut self) {
         self.state = ExperimentState::WarmUp;
@@ -714,14 +727,15 @@ impl Actor for Client {
                         let id = data.as_slice().get_u64();
                         if let Some(proposal_meta) = self.pending_proposals.remove(&id) {
                             let now = self.clock.now();
-                            #[cfg(feature = "simulate_partition")] {
-                                if self.network_scenario != NetworkScenario::FullyConnected && self.state != ExperimentState::Finished {
-                                    if let Some(previous_ts) = std::mem::replace(&mut self.latest_decided_ts, Some(now)) {
-                                        let down_time = now.duration_since(previous_ts);
-                                        if down_time > self.longest_down_time.unwrap_or_default() {
-                                            // info!(self.ctx.log(), "new longest down time: {:?}, id: {}, leader: {}", down_time, id, self.current_leader);
-                                            self.longest_down_time = Some(down_time);
-                                        }
+                            #[cfg(feature = "simulate_partition")]
+                            if let Some(proposal_id_when_partitioned) = self.proposal_id_when_partitioned {
+                                if self.longest_down_time.is_none() {
+                                    if self.network_scenario != NetworkScenario::FullyConnected && id > proposal_id_when_partitioned && self.state != ExperimentState::Finished {
+                                            let down_time = now.duration_since(self.partition_ts.unwrap());
+                                            if self.longest_down_time.is_none() {
+                                                // info!(self.ctx.log(), "new longest down time: {:?}, id: {}, leader: {}", down_time, id, self.current_leader);
+                                                self.longest_down_time = Some(down_time);
+                                            }
                                     }
                                 }
                             }
