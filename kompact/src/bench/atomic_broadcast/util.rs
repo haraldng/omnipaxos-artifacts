@@ -34,7 +34,7 @@ pub(crate) mod exp_util {
     pub const STOP_TIMEOUT: Duration = Duration::from_secs(3 * 60);
     pub const KILL_TIMEOUT: Duration = Duration::from_secs(3 * 60 + 20);
 
-    pub const RECONFIGURATION_PROPOSALS: u64 = 2 * 1000000;
+    pub const RECONFIGURATION_PROPOSALS: u64 = 20 * 1000000;
 
     pub struct ExperimentParams {
         pub election_timeout_ms: u64,
