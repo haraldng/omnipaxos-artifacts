@@ -1,11 +1,4 @@
 #!/bin/bash
-branch=''
-
-while getopts "b:" arg; do
-  case $arg in
-    b) branch=$OPTARG;;
-  esac
-done
 
 VAR=$(sed '2!d' < "master.conf")
 
@@ -32,8 +25,8 @@ do
 
   if [ -z "$branch" ]
   then
-        ssh $trimmed_user@$ip -i $trimmed_key "cd $dir; ./build.sc"
+        ssh $trimmed_user@$ip -i $trimmed_key "killall -r komp"
   else
-        ssh $trimmed_user@$ip -i $trimmed_key "cd $dir; git checkout $branch; ./build.sc"
+        ssh $trimmed_user@$ip -i $trimmed_key "killall -r komp"
   fi  
 done < "$input"

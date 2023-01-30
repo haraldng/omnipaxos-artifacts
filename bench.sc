@@ -289,11 +289,11 @@ private def readMaster(p: Path): (String, HostConfigProvider) = {
 		println(s"Reading master config from '${p}'");
 		val nodesS = read! p;
 		val nodeLines = nodesS.split("\n").filterNot(_.contains("#")).toList;
-		val masterIp = nodeLines(0)
+		val masterIp = nodeLines(0).trim()
 		val sshS = nodeLines(1).split("""\s\|\s""");
 		assert(sshS.size == 2);
-		val user = sshS(0)
-		val key = sshS(1)
+		val user = sshS(0).trim()
+		val key = sshS(1).trim()
 		val login = HostConfigProvider.fromLogin(PublicKeyLogin(user, key));
 		(masterIp, login)
 	} else {
