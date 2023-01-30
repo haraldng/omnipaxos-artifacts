@@ -209,7 +209,7 @@ impl Client {
                     self.finished_latch
                         .decrement()
                         .expect("Failed to countdown finished latch");
-                    info!(self.ctx.log(), "Got reconfig at last. Num responses: {}, {} proposals timed out. Leader changes: {}, {:?}, Last leader was: {}, ballot/term: {}", self.responses.len(), self.num_timed_out, self.leader_changes.len(), self.leader_changes, self.current_leader, self.leader_round);
+                    info!(self.ctx.log(), "Got reconfig at last. Num responses: {}, {} proposals timed out. Number of leaders: {}, {:?}", self.responses.len(), self.num_timed_out, self.leader_changes.len(), self.leader_changes);
                     self.state = ExperimentState::Finished;
                 }
                 ExperimentState::Running => {
@@ -309,7 +309,7 @@ impl Client {
             self.state = ExperimentState::Finished;
             let leader_changes: Vec<_> = self.leader_changes.iter().map(|(_ts, lc)| lc).collect();
             if self.num_timed_out > 0 || self.num_retried > 0 {
-                info!(self.ctx.log(), "Num decided: {}. with {} timeouts and {} retries. Number of leader changes: {}, Last leader was: {}, ballot/term: {}.", self.responses.len(), self.num_timed_out, self.num_retried, self.leader_changes.len(), self.current_leader, self.leader_round);
+                info!(self.ctx.log(), "Num decided: {}. with {} timeouts and {} retries. Number of leaders: {}, Last leader was: {}, ballot/term: {}.", self.responses.len(), self.num_timed_out, self.num_retried, self.leader_changes.len(), self.current_leader, self.leader_round);
                 if leader_changes.len() < 20 {
                     info!(self.ctx.log(), "{:?}", leader_changes);
                 }
@@ -342,12 +342,10 @@ impl Client {
             } else {
                 info!(
                         self.ctx.log(),
-                        "Num decided: {}. Number of leader changes: {}, {:?}, Last leader was: {}, ballot/term: {}.",
+                        "Num decided: {}. Number of leaders: {}, {:?}",
                         self.responses.len(),
                         self.leader_changes.len(),
                         leader_changes,
-                        self.current_leader,
-                        self.leader_round
                     );
             }
         } else {
@@ -650,11 +648,8 @@ impl Actor for Client {
                 assert_ne!(self.current_leader, 0);
                 #[cfg(feature = "simulate_partition")]
                 self.create_partition();
-                #[cfg(feature = "track_timestamps")]
-                {
-                    self.leader_changes
-                        .push((SystemTime::now(), (self.current_leader, self.leader_round)));
-                }
+                self.leader_changes
+                    .push((SystemTime::now(), (self.current_leader, self.leader_round)));
                 #[cfg(feature = "periodic_client_logging")]
                 {
                     self.schedule_periodic(WINDOW_DURATION, WINDOW_DURATION, move |c, _| {

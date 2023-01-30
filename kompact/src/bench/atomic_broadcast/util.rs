@@ -354,6 +354,7 @@ pub mod benchmark_master {
         experiment_str: &str,
         num_decided: u64,
         num_warmup_decided: u64,
+        first_leader: Option<u64>
     ) {
         create_dir_all(num_decided_dir)
             .unwrap_or_else(|_| panic!("Failed to create given directory: {}", num_decided_dir));
@@ -362,7 +363,7 @@ pub mod benchmark_master {
             .append(true)
             .open(format!("{}/{}.data", num_decided_dir, experiment_str))
             .expect("Failed to open num_decided file");
-        writeln!(file, "{} | {}", num_decided, num_warmup_decided)
+        writeln!(file, "{} | {} | {}", num_decided, num_warmup_decided, first_leader.unwrap_or_default())
             .expect("Failed to write num_decided");
         file.flush().expect("Failed to flush num_decided file");
     }

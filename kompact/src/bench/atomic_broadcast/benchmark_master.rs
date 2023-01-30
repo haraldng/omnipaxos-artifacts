@@ -527,6 +527,7 @@ impl AtomicBroadcastMaster {
             experiment_str,
             meta_results.num_decided,
             meta_results.num_warmup_decided,
+            meta_results.leader_changes.first().map(|(_t, (pid, _b))| *pid),
         );
         #[cfg(feature = "simulate_partition")]
         {
