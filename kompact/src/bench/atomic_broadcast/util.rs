@@ -338,13 +338,12 @@ pub mod benchmark_master {
             .append(true)
             .open(format!("{}/{}.data", windowed_dir, experiment_str))
             .expect("Failed to open windowed file");
-        writeln!(windowed_file, "\n{} ", windowed_res.num_warmup_windows)
-            .expect("Failed to write number of warmup windows");
         let mut prev_n = 0;
         for n in windowed_res.windows {
             write!(windowed_file, "{},", n - prev_n).expect("Failed to write windowed file");
             prev_n = n;
         }
+        writeln!(windowed_file, "| {}", windowed_res.num_warmup_windows).unwrap();
         windowed_file
             .flush()
             .expect("Failed to flush windowed file");
