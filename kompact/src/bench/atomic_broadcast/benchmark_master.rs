@@ -196,7 +196,6 @@ impl AtomicBroadcastMaster {
             a if a != "paxos"
                 && a != "raft"
                 && a != "vr"
-                && a != "mple"
                 && a != "multi-paxos"
                 && a != "raft_pv_qc" =>
             {
@@ -376,6 +375,7 @@ impl DistributedBenchmarkMaster for AtomicBroadcastMaster {
             is_reconfig_exp: self.reconfiguration.is_some(),
             election_timeout_ms: c.election_timeout_ms,
             run_id: String::from(m.run_id()),
+            scenario: c.network_scenario,
         };
         let params = ClientParams::with(cpd, c.reconfiguration.as_str());
         Ok(params)

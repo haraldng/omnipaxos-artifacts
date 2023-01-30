@@ -44,7 +44,7 @@ impl DistributedBenchmarkClient for AtomicBroadcastClient {
         let experiment_params = ExperimentParams::load_from_file(
             params.run_id.as_str(),
             meta_subdir,
-            c.experiment_str,
+            c.experiment_str.clone(),
             params.election_timeout_ms,
             params.is_reconfig_exp
         );
@@ -60,49 +60,37 @@ impl DistributedBenchmarkClient for AtomicBroadcastClient {
         let system = crate::kompact_system_provider::global()
             .new_remote_system_with_threads_config("atomicbroadcast", 8, conf, bc, TCP_NODELAY);
         let initial_config: Vec<u64> = (1..=params.num_nodes).collect();
+        println!("EXP STRING: {}", c.experiment_str);
         let named_path = match params.algorithm.as_ref() {
-            a if a == "paxos" || a == "vr" || a == "mple" => {
+            a if a == "paxos" || a == "vr" => {
                 let leader_election = match a {
                     "vr" => LeaderElection::VR,
-                    "mple" => LeaderElection::MultiPaxos,
                     _ => LeaderElection::BLE,
                 };
-                let (paxos_comp, unique_reg_f) = system.create_and_register(|| {
-                    PaxosComp::with(
-                        initial_config,
-                        params.is_reconfig_exp,
-                        experiment_params,
-                        leader_election,
-                    )
-                });
-                unique_reg_f.wait_expect(REGISTER_TIMEOUT, "ReplicaComp failed to register!");
-                let self_path = system
-                    .register_by_alias(&paxos_comp, PAXOS_PATH)
-                    .wait_expect(REGISTER_TIMEOUT, "Failed to register alias for ReplicaComp");
-                let paxos_comp_f = system.start_notify(&paxos_comp);
-                paxos_comp_f
-                    .wait_timeout(REGISTER_TIMEOUT)
-                    .expect("ReplicaComp never started!");
-                self.paxos_comp = Some(paxos_comp);
-                self_path
+                self.create_paxos_replica(&system, leader_election, initial_config, params.is_reconfig_exp, experiment_params)
             }
             mp if mp == "multi-paxos" => {
-                let (mp_comp, unique_reg_f) = system.create_and_register(|| {
-                    MultiPaxosComp::with(initial_config, experiment_params)
-                });
-                unique_reg_f.wait_expect(REGISTER_TIMEOUT, "ReplicaComp failed to register!");
-                let self_path = system
-                    .register_by_alias(&mp_comp, MULTIPAXOS_PATH)
-                    .wait_expect(
-                        REGISTER_TIMEOUT,
-                        "Failed to register alias for MultiPaxosComp",
-                    );
-                let mp_comp_f = system.start_notify(&mp_comp);
-                mp_comp_f
-                    .wait_timeout(REGISTER_TIMEOUT)
-                    .expect("MultiPaxosComp never started!");
-                self.multipaxos_comp = Some(mp_comp);
-                self_path
+                if c.experiment_str.contains("constrained") || c.experiment_str.contains("chained") {
+                    println!("USING MPLE in {}", c.experiment_str);
+                    self.create_paxos_replica(&system, LeaderElection::MultiPaxos, initial_config, params.is_reconfig_exp, experiment_params)
+                } else {
+                    let (mp_comp, unique_reg_f) = system.create_and_register(|| {
+                        MultiPaxosComp::with(initial_config, experiment_params)
+                    });
+                    unique_reg_f.wait_expect(REGISTER_TIMEOUT, "ReplicaComp failed to register!");
+                    let self_path = system
+                        .register_by_alias(&mp_comp, MULTIPAXOS_PATH)
+                        .wait_expect(
+                            REGISTER_TIMEOUT,
+                            "Failed to register alias for MultiPaxosComp",
+                        );
+                    let mp_comp_f = system.start_notify(&mp_comp);
+                    mp_comp_f
+                        .wait_timeout(REGISTER_TIMEOUT)
+                        .expect("MultiPaxosComp never started!");
+                    self.multipaxos_comp = Some(mp_comp);
+                    self_path
+                }
             }
             r if r == "raft" || r == "raft_pv_qc" => {
                 let pv_qc = r == "raft_pv_qc";
@@ -143,6 +131,27 @@ impl DistributedBenchmarkClient for AtomicBroadcastClient {
 }
 
 impl AtomicBroadcastClient {
+    fn create_paxos_replica(&mut self, system: &KompactSystem, leader_election: LeaderElection, initial_config: Vec<u64>, is_reconfig_exp: bool, experiment_params: ExperimentParams) -> ActorPath {
+        let (paxos_comp, unique_reg_f) = system.create_and_register(|| {
+            PaxosComp::with(
+                initial_config,
+                is_reconfig_exp,
+                experiment_params,
+                leader_election,
+            )
+        });
+        unique_reg_f.wait_expect(REGISTER_TIMEOUT, "ReplicaComp failed to register!");
+        let self_path = system
+            .register_by_alias(&paxos_comp, PAXOS_PATH)
+            .wait_expect(REGISTER_TIMEOUT, "Failed to register alias for ReplicaComp");
+        let paxos_comp_f = system.start_notify(&paxos_comp);
+        paxos_comp_f
+            .wait_timeout(REGISTER_TIMEOUT)
+            .expect("ReplicaComp never started!");
+        self.paxos_comp = Some(paxos_comp);
+        self_path
+    }
+
     fn kill_child_components(&mut self) {
         if let Some(paxos) = &self.paxos_comp {
             let kill_comps_f = paxos
@@ -201,13 +210,14 @@ pub struct ClientParams {
 impl ClientParams {
     pub(crate) fn with(c: ClientParamsDeser, reconfig: &str) -> ClientParams {
         let experiment_str = format!(
-            "{},{},{},{},{},{}",
+            "{},{},{},{},{},{},{}",
             c.algorithm,
             c.num_nodes,
             c.concurrent_proposals,
             reconfig,
             c.election_timeout_ms,
-            c.run_id
+            c.run_id,
+            c.scenario
         );
         ClientParams { experiment_str }
     }
@@ -221,11 +231,12 @@ pub struct ClientParamsDeser {
     pub is_reconfig_exp: bool,
     pub election_timeout_ms: u64,
     pub run_id: String,
+    pub scenario: String,
 }
 
 fn get_deser_clientparams_and_subdir(s: &str) -> (ClientParamsDeser, String) {
     let split: Vec<_> = s.split(',').collect();
-    assert_eq!(split.len(), 6, "{:?}", split);
+    assert_eq!(split.len(), 7, "{:?}", split);
     let algorithm = split[0].to_lowercase();
     let num_nodes = split[1]
         .parse::<u64>()
@@ -249,6 +260,7 @@ fn get_deser_clientparams_and_subdir(s: &str) -> (ClientParamsDeser, String) {
             )
         });
     let run_id = split[5].clone();
+    let scenario = split[6].to_lowercase();
     let cp = ClientParamsDeser {
         algorithm,
         num_nodes,
@@ -256,6 +268,7 @@ fn get_deser_clientparams_and_subdir(s: &str) -> (ClientParamsDeser, String) {
         is_reconfig_exp,
         election_timeout_ms,
         run_id: run_id.to_string(),
+        scenario: scenario.to_string(),
     };
     let subdir = create_metaresults_sub_dir(num_nodes, concurrent_proposals, reconfig.as_str());
     (cp, subdir)
