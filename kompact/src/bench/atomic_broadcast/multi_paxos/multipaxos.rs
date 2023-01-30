@@ -29,6 +29,7 @@ use crate::bench::atomic_broadcast::util::exp_util::LAGGING_DELAY_FACTOR;
 use hashbrown::HashMap;
 use kompact::prelude::*;
 use std::{ops::DerefMut, sync::Arc, time::Duration};
+use crate::bench::atomic_broadcast::util::exp_util::STOP_TIMEOUT;
 
 const BATCHER: &str = "batcher";
 const PARTICIPANT: &str = "participant";
@@ -333,12 +334,15 @@ impl MultiPaxosComp {
             let kill_replica = system.kill_notify(replica);
             kill_futures.push(kill_replica);
         }
-        Handled::block_on(self, move |_| async move {
-            for f in kill_futures {
-                f.await.expect("Failed to kill");
-            }
-            let _ = ask.reply(Done);
-        })
+        for f in kill_futures {
+            let _ = f.wait_timeout(STOP_TIMEOUT).map_err(|_| {
+                warn!(
+                    self.ctx.log(),
+                    "Failed to kill child components within timeout"
+                );
+            });
+        }
+        Handled::Ok
     }
 
     fn create_alias(component_name: &str, pid: u64, iteration_id: u32) -> String {

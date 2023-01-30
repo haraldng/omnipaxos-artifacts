@@ -308,7 +308,7 @@ where
         }
 
         for f in kill_futures {
-            f.wait_timeout(STOP_TIMEOUT).map_err(|_| {
+            let _ = f.wait_timeout(STOP_TIMEOUT).map_err(|_| {
                 warn!(
                     self.ctx.log(),
                     "Failed to kill child components within timeout"
