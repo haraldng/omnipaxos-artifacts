@@ -16,7 +16,7 @@ use std::{
 };
 use synchronoise::{event::CountdownError, CountdownEvent};
 use crate::bench::atomic_broadcast::benchmark_master::ReconfigurationPolicy;
-use crate::bench::atomic_broadcast::util::exp_util::{DATA_SIZE, KILL_TIMEOUT, WINDOW_DURATION};
+use crate::bench::atomic_broadcast::util::exp_util::{DATA_SIZE, KILL_TIMEOUT, RECONFIGURATION_WARMUP_FACTOR, WINDOW_DURATION};
 use crate::bench::atomic_broadcast::client::*;
 use crate::bench::atomic_broadcast::util::MetaResults;
 
@@ -221,7 +221,7 @@ impl ReconfigurationClient {
                     "Got all normal responses but still pending reconfiguration"
                 );
             }
-        } else if received_count == self.num_proposals / 2 && self.reconfig.is_some() {
+        } else if received_count == self.num_proposals / RECONFIGURATION_WARMUP_FACTOR && self.reconfig.is_some() {
             let leader = self
                 .nodes
                 .get(&self.current_leader)
