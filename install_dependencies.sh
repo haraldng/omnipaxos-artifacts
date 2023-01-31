@@ -37,4 +37,4 @@ source "$HOME/.cargo/env"
 sudo sh -c '(echo "#!/usr/bin/env sh" && curl -L https://github.com/com-lihaoyi/Ammonite/releases/download/2.3.8/2.12-2.3.8) > /usr/local/bin/amm && chmod +x /usr/local/bin/amm'
 
 # Protobuf
-./scripts/travis_install_protobuf.sh
+./travis_install_protobuf.sh
