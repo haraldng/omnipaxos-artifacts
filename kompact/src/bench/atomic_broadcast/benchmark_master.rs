@@ -111,7 +111,6 @@ impl AtomicBroadcastMaster {
         network_scenario: NetworkScenario,
         client_timeout: Duration,
         short_timeout: Duration,
-        lagging_delay_ms: u64,
         warmup_latch: Arc<CountdownEvent>,
     ) -> (Arc<Component<Client>>, ActorPath) {
         let system = self.system.as_ref().unwrap();
@@ -440,7 +439,6 @@ impl DistributedBenchmarkMaster for AtomicBroadcastMaster {
                     self.network_scenario.expect("No network scenario"),
                     client_timeout,
                     short_timeout,
-                    self.lagging_delay_ms,
                     warmup_latch.clone(),
                 );
                 self.client_comp = Some(client_comp);
