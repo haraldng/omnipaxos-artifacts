@@ -37,7 +37,7 @@ val make = binp('make);
 val makeEnv: Map[String, String] = Map.empty;
 
 val builders: List[Builder] = List(
-	//Builder("Shared Library Scala", relp("shared_scala"), sbtEnv, sbt, Seq("publishLocal"), Seq("clean")),
+	Builder("Shared Library Scala", relp("shared_scala"), sbtEnv, sbt, Seq("publishLocal"), Seq("clean")),
 	Builder("Experiment Runner", relp("runner"), sbtEnv, sbt, Seq("assembly", "publishLocal"), Seq("clean")),
 	Builder("Kompact", relp("kompact"), cargoEnv, cargo, cargoBuildCmd, Seq("clean")),
 );
