@@ -36,6 +36,7 @@ pub(crate) mod exp_util {
 
     pub const RECONFIGURATION_PROPOSALS: u64 = 20 * 1000000;
     pub const RECONFIGURATION_WARMUP_FACTOR: u64 = 2;
+    pub const SHORT_WARMUP_DURATION: Duration = Duration::from_secs(1);
 
     pub struct ExperimentParams {
         pub election_timeout_ms: u64,

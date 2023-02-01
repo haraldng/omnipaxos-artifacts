@@ -118,6 +118,7 @@ impl AtomicBroadcastMaster {
         /*** Setup client ***/
         let initial_config: Vec<_> = (1..=self.num_nodes.unwrap()).map(|x| x as u64).collect();
         let reconfig = self.reconfiguration.clone();
+        let warmup_duration = if self.is_test_run() { SHORT_WARMUP_DURATION } else { WARMUP_DURATION };
         let (client_comp, unique_reg_f) = system.create_and_register(|| {
             Client::with(
                 initial_config,
@@ -131,6 +132,7 @@ impl AtomicBroadcastMaster {
                 self.lagging_delay_ms,
                 warmup_latch,
                 finished_latch,
+                warmup_duration,
             )
         });
         unique_reg_f.wait_expect(REGISTER_TIMEOUT, "Client failed to register!");
@@ -482,7 +484,9 @@ impl DistributedBenchmarkMaster for AtomicBroadcastMaster {
             "Cleaning up Atomic Broadcast (master) iteration {}. Exec_time: {}",
             self.iteration_id, exec_time_millis
         );
-        std::thread::sleep(COOLDOWN_DURATION);
+        if !self.is_test_run() {
+            std::thread::sleep(COOLDOWN_DURATION);
+        }
         let meta_results = match self.reconfiguration {
             None => {
                 let client = self.client_comp.as_ref().unwrap().actor_ref();
@@ -631,6 +635,14 @@ impl AtomicBroadcastMaster {
         self.meta_results_path = None;
         self.meta_results_sub_dir = None;
         self.lagging_delay_ms = 0;
+    }
+
+    /// returns true if the experiment is a test run according to the test parameters defined in Benchmarks.scala
+    fn is_test_run(&self) -> bool {
+        self.num_nodes.unwrap_or_default() == 3
+            && self.concurrent_proposals.unwrap_or_default() == 200
+            && self.network_scenario == Some(NetworkScenario::FullyConnected)
+            && self.exp_duration.unwrap_or_default() == Duration::from_secs(10)
     }
 }
 

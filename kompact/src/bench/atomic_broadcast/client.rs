@@ -68,6 +68,7 @@ pub struct Client {
     #[cfg(feature = "simulate_partition")]
     proposal_id_when_partitioned: Option<u64>,
     lagging_delay_ms: u64,
+    warmup_duration: Duration,
 }
 
 impl Client {
@@ -83,6 +84,7 @@ impl Client {
         lagging_delay_ms: u64,
         warmup_latch: Arc<CountdownEvent>,
         finished_latch: Arc<CountdownEvent>,
+        warmup_duration: Duration,
     ) -> Client {
         let clock = Clock::new();
         Client {
@@ -129,7 +131,8 @@ impl Client {
             partition_ts: None,
             #[cfg(feature = "simulate_partition")]
             proposal_id_when_partitioned: None,
-            lagging_delay_ms
+            lagging_delay_ms,
+            warmup_duration,
         }
     }
 
@@ -617,7 +620,7 @@ impl Client {
     fn start_warmup(&mut self) {
         self.state = ExperimentState::WarmUp;
         self.send_concurrent_proposals();
-        self.schedule_once(WARMUP_DURATION, move |c, _| {
+        self.schedule_once(self.warmup_duration, move |c, _| {
             c.warmup_latch
                 .decrement()
                 .expect("Failed to decrement warmup latch");

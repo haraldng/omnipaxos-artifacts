@@ -56,7 +56,7 @@ object Benchmarks extends ParameterDescriptionImplicits {
   //implicit def seq2param[T: ParameterDescriptor](s: Seq[T]): ParameterSpace[T] = ParametersSparse1D(s);
 
   /*** split into different parameter spaces as some parameters are dependent on each other ***/
-  private val testNodes = List(3, 5);
+  private val testNodes = List(3);
   private val testDuration= List(1*10);
   private val testConcurrentProposals = List(200L);
 
@@ -73,19 +73,18 @@ object Benchmarks extends ParameterDescriptionImplicits {
   private val reconfigAlgorithms = List("paxos", "raft");
 
   private val reconfig_policy = List("replace-follower", "replace-leader");
-  private val network_scenarios = List("fully_connected", "quorum_loss-5", "constrained_election-5", "chained-5")
   private val election_timeout_ms = List(50L, 500L, 5L.k)
   private val stable_election_timeout_ms = List(10L.k)
 
   private val normalTestSpace = ParameterSpacePB // test space
     .cross(
-      normalAlgorithms,
+      List("paxos"),
       testNodes,
       testDuration,
       testConcurrentProposals,
       List("off"),
       List("none"),
-      network_scenarios,
+      List("fully_connected"),
       stable_election_timeout_ms
     );
 
@@ -171,7 +170,7 @@ object Benchmarks extends ParameterDescriptionImplicits {
     invoke = (stub, request: AtomicBroadcastRequest) => {
       stub.atomicBroadcast(request)
     },
-    space = reconfigSingleSpace.append(partialConnectivitySpace)
+    space = partialConnectivitySpace
       .msg[AtomicBroadcastRequest] {
         case (a, nn, d, cp, r, rp, ns, et) =>
           AtomicBroadcastRequest(
@@ -185,7 +184,7 @@ object Benchmarks extends ParameterDescriptionImplicits {
             electionTimeoutMs = et,
           )
       },
-    testSpace = miniQuorumSpace
+    testSpace = normalTestSpace
       .msg[AtomicBroadcastRequest] {
         case (a, nn, d, cp, r, rp, ns, et) =>
           AtomicBroadcastRequest(
