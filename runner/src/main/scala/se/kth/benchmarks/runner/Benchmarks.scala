@@ -69,14 +69,13 @@ object Benchmarks extends ParameterDescriptionImplicits {
   private val ConcurrentProposals = List(500L, 5L.k, 50L.k);
 
   private val normalAlgorithms = List("paxos", "raft", "multi-paxos");
-  private val chainedAlgorithms = List("vr", "mple", "paxos", "raft", "raft_pv_qc");
-  private val quorumLossAlgorithms = List("vr", "multi-paxos", "paxos", "raft", "raft_pv_qc");
+  private val pcAlgorithms = List("vr", "multi-paxos", "paxos", "raft", "raft_pv_qc");
   private val reconfigAlgorithms = List("paxos", "raft");
 
-  private val reconfig = List("single", "majority");
   private val reconfig_policy = List("replace-follower", "replace-leader");
   private val network_scenarios = List("fully_connected", "quorum_loss-5", "constrained_election-5", "chained-5")
-  private val election_timeout_ms = List(50L.k)
+  private val election_timeout_ms = List(50L, 500L, 5L.k)
+  private val stable_election_timeout_ms = List(10L.k)
 
   private val normalTestSpace = ParameterSpacePB // test space
     .cross(
@@ -87,24 +86,36 @@ object Benchmarks extends ParameterDescriptionImplicits {
       List("off"),
       List("none"),
       network_scenarios,
-      election_timeout_ms
+      stable_election_timeout_ms
     );
 
-  private val normalSpace = ParameterSpacePB
+  private val normalThreeSpace = ParameterSpacePB
     .cross(
       normalAlgorithms,
-      nodes,
+      List(3),
       duration,
       ConcurrentProposals,
       List("off"),
       List("none"),
       List("fully_connected"),
-      List(5L.k)
+      stable_election_timeout_ms
+    );
+
+  private val normalFiveSpace = ParameterSpacePB
+    .cross(
+      normalAlgorithms,
+      List(5),
+      duration,
+      ConcurrentProposals,
+      List("off"),
+      List("none"),
+      List("fully_connected"),
+      stable_election_timeout_ms
     );
 
   private val chainedSpace = ParameterSpacePB
     .cross(
-      chainedAlgorithms,
+      pcAlgorithms,
       chainedNodes,
       duration,
       List(500L),
@@ -116,7 +127,7 @@ object Benchmarks extends ParameterDescriptionImplicits {
 
   private val quorumLossConstrainedSpace = ParameterSpacePB
     .cross(
-      quorumLossAlgorithms,
+      pcAlgorithms,
       quorumLossNodes,
       duration,
       List(500L),
@@ -135,7 +146,7 @@ object Benchmarks extends ParameterDescriptionImplicits {
       List("single"),
       reconfig_policy,
       List("fully_connected"),
-      List(5L.k)
+      stable_election_timeout_ms
     );
 
   private val reconfigMajoritySpace = ParameterSpacePB
@@ -147,10 +158,11 @@ object Benchmarks extends ParameterDescriptionImplicits {
       List("majority"),
       reconfig_policy,
       List("fully_connected"),
-      List(5L.k)
+      stable_election_timeout_ms
     );
 
-  private val normalPartialConnectivitySpace = normalSpace.append(chainedSpace).append(quorumLossConstrainedSpace);
+  private val partialConnectivitySpace = chainedSpace.append(quorumLossConstrainedSpace);
+  private val normalSpace = normalThreeSpace.append(normalFiveSpace)
   private val reconfigSpace = reconfigSingleSpace.append(reconfigMajoritySpace);
 
   val atomicBroadcast = Benchmark(
@@ -159,7 +171,7 @@ object Benchmarks extends ParameterDescriptionImplicits {
     invoke = (stub, request: AtomicBroadcastRequest) => {
       stub.atomicBroadcast(request)
     },
-    space = normalPartialConnectivitySpace
+    space = reconfigSingleSpace.append(partialConnectivitySpace)
       .msg[AtomicBroadcastRequest] {
         case (a, nn, d, cp, r, rp, ns, et) =>
           AtomicBroadcastRequest(
@@ -173,7 +185,7 @@ object Benchmarks extends ParameterDescriptionImplicits {
             electionTimeoutMs = et,
           )
       },
-    testSpace = normalTestSpace
+    testSpace = miniQuorumSpace
       .msg[AtomicBroadcastRequest] {
         case (a, nn, d, cp, r, rp, ns, et) =>
           AtomicBroadcastRequest(
