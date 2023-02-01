@@ -167,5 +167,5 @@ git checkout <branch_name> ; ./build.sc
 Please see the jupyter notebook with code and instructions for plotting in ``visualisation/Plotter.ipynb``. Each experiment will be plotted by providing their corresponding results path.
 
 # Miscellaneous
-We present a set of practical tips and tools that can be useful for evaluators [here](../MISC.md).
+We present a set of practical tips and tools that can be useful for evaluators [here](https://github.com/haraldng/omnipaxos-artifacts/blob/main/MISC.md).
 
