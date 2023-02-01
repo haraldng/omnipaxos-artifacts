@@ -39,3 +39,5 @@ sudo sh -c '(echo "#!/usr/bin/env sh" && curl -L https://github.com/com-lihaoyi/
 
 # Protobuf
 ./travis_install_protobuf.sh
+
+source "$HOME/.cargo/env"

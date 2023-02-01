@@ -27,6 +27,11 @@ We used the following environment for our evaluation:
 
 To install these, run the installation script: `./install_dependencies.sh`
 
+After installation, you may need to update the environvment variable for Cargo:
+```
+source "$HOME/.cargo/env"
+```
+
 **Hardware Dependencies**
 
 Our evaluation was performed in Google Cloud Compute using nine `e2-standard-8` VM instances with 8 vCPUs and 32 GB memory.
@@ -162,5 +167,5 @@ git checkout <branch_name> ; ./build.sc
 Please see the jupyter notebook with code and instructions for plotting in ``visualisation/Plotter.ipynb``. Each experiment will be plotted by providing their corresponding results path.
 
 # Miscellaneous
-We present a set of practical tips and tools that can be useful for evaluators [here]()
+We present a set of practical tips and tools that can be useful for evaluators [here](../MISC.md).
 
