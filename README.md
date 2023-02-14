@@ -27,7 +27,7 @@ We used the following environment for our evaluation:
 
 To install these, run the installation script: `./install_dependencies.sh`
 
-After installation, you may need to update the environvment variable for Cargo:
+After installation, you may need to update the environment variable for Cargo:
 ```
 source "$HOME/.cargo/env"
 ```
@@ -42,7 +42,7 @@ Our evaluation was performed in Google Cloud Compute using nine `e2-standard-8` 
 3. Build with ``./build.sc``
 
 ## Minimal Working Example
-To verify that the installation was successful, we can run a minimal benchmark: 
+To verify that the installation was successful, we can run a minimal benchmark:
 ```
 ./bench.sc fakeRemote --withClients 3 --remoteDir remote_logs --testing true --runName minimal-test
 ```
@@ -50,7 +50,7 @@ This runs a small experiment of 10 runs with Omni-Paxos in steady state with 3 s
 
 ### Parameters and Output
 The ``bench.sc`` command will be used to run all the experiments. It has the following parameters:
-- ``fakeRemote``: the experiment environment. In this case we use the ``fakeRemote`` mode which mimics a distributed setting by starting multiple processes on the local host. The `--withClients` argument is specific for this mode and determines the number of processes it should start. The `--remoteDir` is also optional and specific to `fakeRemote`, it provides the directory for which the processes will be spawned. For deployments in real distributed settings (e.g., as in [Setup Guide](#setup-guide)), we will use `remote` which does not require these arguments see ([Experiments and Expected Results](#experiments-and-expected-results)). 
+- ``fakeRemote``: the experiment environment. In this case we use the ``fakeRemote`` mode which mimics a distributed setting by starting multiple processes on the local host. The `--withClients` argument is specific for this mode and determines the number of processes it should start. The `--remoteDir` is also optional and specific to `fakeRemote`, it provides the directory for which the processes will be spawned. For deployments in real distributed settings (e.g., as in [Setup Guide](#setup-guide)), we will use `remote` which does not require these arguments see ([Experiments and Expected Results](#experiments-and-expected-results)).
 - `--testing` is an optional argument to run this minimal benchmark. This flag is turned off by default.
 - `--runName` is an optional argument to provide a more human-friendly name to the experiment. This name will be used in the path of the output directories such as logs and results.
 
@@ -68,7 +68,7 @@ When an experiment is completed, the logs and meta_results can be zipped into on
 This section describes how to setup and run the benchmarks in order to reproduce the claims made in our EuroSys'23 paper.
 
 ## Setup Guide
-We performed the evaluation on Google Cloud Compute using nine `e2-standard-8` instances. This section describes the steps to recreate the distributed environment from scratch.
+We performed the evaluation on Google Cloud Compute using nine `e2-standard-8` instances (if you don't have cloud access please see the section [Local Experiments](#local-experiments)). This section describes the steps to recreate the distributed environment from scratch.
 
 1. In Google Cloud, navigate to the "VM instances" console under "Compute Engine" and create an `e2-standard-8` instance named `benchmark-master` in the region `us-central1` with:
    1. OS: Ubuntu 18.04
@@ -85,7 +85,7 @@ To avoid having to repeat steps 1-6 for all server instances, we will create a m
 7. In the "VM instances" console, press on the `benchmark-master` instance and choose "Create Machine Image".
 8. Once the machine image has been created successfully, new instances can be created from it in the "Machine Images" console.
 
-We will need different number of client instances depending on the experiment (see section [Experiments and Expected Results](#experiments-and-expected-results)). Each client instance created from the machine image will have the same state as the master up to step 4. 
+We will need different number of client instances depending on the experiment (see section [Experiments and Expected Results](#experiments-and-expected-results)). Each client instance created from the machine image will have the same state as the master up to step 4.
 
 9. To make sure that the master can connect to the server instances, manually SSH to them from the master using the internal IP addresses (found in Google Cloud console).
 10. Build on the server instance: `./build.sc`
@@ -162,6 +162,14 @@ git checkout <branch_name> ; ./build.sc
 - Run on master instance: `./bench.sc remote --runName reconfig`
 - Results directory (on master instance): `meta_results/reconfig`
 - How the results support the targeted claim: Each experiment folder will have a sub-folder `windowed` with the recorded number of decided proposals for every 5s window. When plotted, we see the throughput over time. The plots should show that Omni-Paxos has a smaller drop over a shorter period of time similar to the values specified in (C3). This should support the claim (C3) that Omni-Paxos has lower reconfiguration overhead with smaller impact on throughput and faster recovery compared to Raft.
+
+## Local Experiments
+If you don't have access to GCC or any other cloud provider, it is possible to reproduce claim C1 and C2 on a local machine.
+
+0. Follow the [Installation Guide](#installation-guide).
+1. Switch to the `local` branch and build: ```git checkout local ; ./build.sc```
+2. Run experiments E1, E2 with: `./bench.sc fakeRemote --withClients 5 --remoteDir remote_logs --runName local`
+3. The results are found in  `meta_results/local`. See last step of E1 and E2 in [Experiments and Expected Results](#experiments-and-expected-results) on how to plot and verify the results.
 
 # Plotting
 Please see the jupyter notebook with code and instructions for plotting in ``visualisation/Plotter.ipynb``. Each experiment will be plotted by providing their corresponding results path.
