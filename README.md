@@ -27,7 +27,7 @@ We used the following environment for our evaluation:
 
 To install these, run the installation script: `./install_dependencies.sh`
 
-After installation, you may need to update the environvment variable for Cargo:
+After installation, you may need to update the environment variable for Cargo:
 ```
 source "$HOME/.cargo/env"
 ```
@@ -68,7 +68,7 @@ When an experiment is completed, the logs and meta_results can be zipped into on
 This section describes how to setup and run the benchmarks in order to reproduce the claims made in our EuroSys'23 paper.
 
 ## Setup Guide
-We performed the evaluation on Google Cloud Compute using nine `e2-standard-8` instances. This section describes the steps to recreate the distributed environment from scratch.
+We performed the evaluation on Google Cloud Compute using nine `e2-standard-8` instances (if you don't have cloud access please see the section [Local Experiments](#local-experiments)). This section describes the steps to recreate the distributed environment from scratch.
 
 1. In Google Cloud, navigate to the "VM instances" console under "Compute Engine" and create an `e2-standard-8` instance named `benchmark-master` in the region `us-central1` with:
    1. OS: Ubuntu 18.04
@@ -162,6 +162,14 @@ git checkout <branch_name> ; ./build.sc
 - Run on master instance: `./bench.sc remote --runName reconfig`
 - Results directory (on master instance): `meta_results/reconfig`
 - How the results support the targeted claim: Each experiment folder will have a sub-folder `windowed` with the recorded number of decided proposals for every 5s window. When plotted, we see the throughput over time. The plots should show that Omni-Paxos has a smaller drop over a shorter period of time similar to the values specified in (C3). This should support the claim (C3) that Omni-Paxos has lower reconfiguration overhead with smaller impact on throughput and faster recovery compared to Raft.
+
+## Local Experiments
+If you don't have access to GCC or any other cloud provider, it is possible to reproduce claim C1 and C2 on a local machine. 
+
+0. Follow the [Installation Guide](#installation-guide).
+1. Switch to the `local` branch and build: ```git checkout local ; ./build.sc```
+2. Run experiments E1, E2 with: `./bench.sc fakeRemote --withClients 5 --remoteDir remote_logs --runName local`
+3. The results are found in  `meta_results/local`. See last step of E1 and E2 in [Experiments and Expected Results](#experiments-and-expected-results) on how to plot and verify the results.
 
 # Plotting
 Please see the jupyter notebook with code and instructions for plotting in ``visualisation/Plotter.ipynb``. Each experiment will be plotted by providing their corresponding results path.
