@@ -164,7 +164,7 @@ git checkout <branch_name> ; ./build.sc
 - How the results support the targeted claim: Each experiment folder will have a sub-folder `windowed` with the recorded number of decided proposals for every 5s window. When plotted, we see the throughput over time. The plots should show that Omni-Paxos has a smaller drop over a shorter period of time similar to the values specified in (C3). This should support the claim (C3) that Omni-Paxos has lower reconfiguration overhead with smaller impact on throughput and faster recovery compared to Raft.
 
 ## Local Experiments
-If you don't have access to GCC or any other cloud provider, it is possible to reproduce claim C1 and C2 on a local machine.
+If you don't have access to GCC or any other cloud provider, it is possible to reproduce claim C1 and C2 on a local machine. The machine will need the same software dependencies (see [Dependencies](#dependencies)) and at least 64GB RAM.
 
 0. Follow the [Installation Guide](#installation-guide).
 1. Switch to the `local` branch and build: ```git checkout local ; ./build.sc```
