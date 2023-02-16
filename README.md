@@ -164,12 +164,12 @@ git checkout <branch_name> ; ./build.sc
 - How the results support the targeted claim: Each experiment folder will have a sub-folder `windowed` with the recorded number of decided proposals for every 5s window. When plotted, we see the throughput over time. The plots should show that Omni-Paxos has a smaller drop over a shorter period of time similar to the values specified in (C3). This should support the claim (C3) that Omni-Paxos has lower reconfiguration overhead with smaller impact on throughput and faster recovery compared to Raft.
 
 ## Local Experiments
-If you don't have access to GCC or any other cloud provider, it is possible to reproduce claim C1 and C2 on a local machine. The machine will need the same software dependencies (see [Dependencies](#dependencies)) and at least 64GB RAM.
+If you don't have access to GCC or any other cloud provider, it is possible to reproduce the claims a local machine. The machine will need the same software dependencies (see [Dependencies](#dependencies)) and at least 16GB RAM for the normal and partial connectivity experiments (E1-E4) and 32GB RAM for E5.
 
 0. Follow the [Installation Guide](#installation-guide).
 1. Switch to the `local` branch and build: ```git checkout local ; ./build.sc```
-2. Run experiments E1, E2 with: `./bench.sc fakeRemote --withClients 5 --remoteDir remote_logs --runName local`
-3. The results are found in  `meta_results/local`. See last step of E1 and E2 in [Experiments and Expected Results](#experiments-and-expected-results) on how to plot and verify the results.
+2. Run all experiments E1-E5 with: `./bench.sc fakeRemote --withClients 8 --remoteDir remote_logs --runName local`
+3. The results are found in  `meta_results/local`. See last step of E1-E5 in [Experiments and Expected Results](#experiments-and-expected-results) on how to plot and verify the results.
 
 # Plotting
 Please see the jupyter notebook with code and instructions for plotting in ``visualisation/Plotter.ipynb``. Each experiment will be plotted by providing their corresponding results path.
