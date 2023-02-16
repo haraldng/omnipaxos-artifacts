@@ -108,3 +108,4 @@ out/
 *.pyc
 #*.png
 project/build.properties
+visualisation/.ipynb_checkpoints/Plotter-checkpoint.ipynb
