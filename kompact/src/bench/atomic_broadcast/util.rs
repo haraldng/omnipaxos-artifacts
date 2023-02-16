@@ -29,7 +29,7 @@ pub(crate) mod exp_util {
     pub const LAGGING_DELAY_FACTOR: u64 = 2;
     pub const WINDOW_DURATION: Duration = Duration::from_millis(5000);
     pub const DATA_SIZE: usize = 8;
-    pub const WARMUP_DURATION: Duration = Duration::from_secs(60);
+    pub const WARMUP_DURATION: Duration = Duration::from_secs(30);
     pub const COOLDOWN_DURATION: Duration = WARMUP_DURATION;
     pub const STOP_TIMEOUT: Duration = Duration::from_secs(3 * 60);
     pub const KILL_TIMEOUT: Duration = Duration::from_secs(3 * 60 + 20);
