@@ -160,7 +160,7 @@ object Benchmarks extends ParameterDescriptionImplicits {
       stable_election_timeout_ms
     );
 
-  private val partialConnectivitySpace = chainedSpace.append(quorumLossConstrainedSpace);
+  private val partialConnectivitySpace = quorumLossConstrainedSpace;
   private val normalSpace = normalThreeSpace.append(normalFiveSpace)
   private val reconfigSpace = reconfigSingleSpace.append(reconfigMajoritySpace);
 
