@@ -69,7 +69,7 @@ object Benchmarks extends ParameterDescriptionImplicits {
   private val ConcurrentProposals = List(500L, 5L.k, 50L.k);
 
   private val normalAlgorithms = List("paxos", "raft", "multi-paxos");
-  private val pcAlgorithms = List("vr", "multi-paxos", "paxos", "raft", "raft_pv_qc");
+  private val pcAlgorithms = List("paxos", "raft", "raft_pv_qc");
   private val reconfigAlgorithms = List("paxos", "raft");
 
   private val reconfig_policy = List("replace-follower", "replace-leader");
